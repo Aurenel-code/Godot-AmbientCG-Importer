@@ -38,5 +38,5 @@ func test_history_skips_invalid_entries():
 
 
 func test_format_info():
-	assert_eq(DownloadItem._format_info("3d-model", 2048, 0), "3D Model · 2.00 KiB")
+	assert_eq(DownloadItem._format_info("3d-model", 2048, 0), "3D Model · 2.05 KB")
 	assert_eq(DownloadItem._format_info("", 0, 0), "")

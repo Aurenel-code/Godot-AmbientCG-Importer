@@ -5,15 +5,23 @@ extends Node
 # ambientCG serves thumbnails and downloads from struffelproductions.com.
 const TRUSTED_HOSTS: PackedStringArray = ["ambientcg.com", "struffelproductions.com"]
 
+# Decimal units, as shown on ambientCG and in file browsers.
+const SIZE_UNITS = ["B", "KB", "MB", "GB", "TB"]
 
+
+## Formats a byte count with decimal units and up to two decimals,
+## e.g. "512 B", "7.48 MB", "1.5 GB".
 static func format_file_size(bytes: int) -> String:
-	if bytes < 1024:
+	var value := float(bytes)
+	var unit := 0
+	# Compares the rounded value so 999,999 bytes reads "1 MB", not "1000 KB".
+	while snappedf(value, 0.01) >= 1000.0 and unit < SIZE_UNITS.size() - 1:
+		value /= 1000.0
+		unit += 1
+	if unit == 0:
 		return "%d B" % bytes
-	if bytes < 1024 * 1024:
-		return "%.2f KiB" % (float(bytes) / 1024.0)
-	if bytes < 1024 * 1024 * 1024:
-		return "%.2f MiB" % (float(bytes) / (1024.0 * 1024.0))
-	return "%.2f GiB" % (float(bytes) / (1024.0 * 1024.0 * 1024.0))
+	var text := ("%.2f" % value).rstrip("0").rstrip(".")
+	return "%s %s" % [text, SIZE_UNITS[unit]]
 
 
 static func ensure_dir(path: String) -> void:

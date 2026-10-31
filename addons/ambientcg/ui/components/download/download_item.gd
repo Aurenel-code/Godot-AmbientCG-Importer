@@ -94,6 +94,9 @@ func _build_download_path(asset_name: String) -> String:
 
 
 func _update_progress(bytes_downloaded: int, total_bytes: int) -> void:
+	# Some assets (such as HDRIs) have no size listed until the download runs.
+	if total_bytes > 0:
+		file_size = total_bytes
 	var progress = (float(bytes_downloaded) / float(total_bytes)) * 100.0
 	progress_bar.value = progress
 	status_label.text = "Downloading (%.1f%%)" % progress

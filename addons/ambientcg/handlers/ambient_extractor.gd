@@ -16,6 +16,13 @@ var sky_maker: Script
 var decal_maker: Script
 var model_maker: Script
 
+# Generated resources waiting to show up in the FileSystem dock, mapped to
+# {"attempts": int, "stable": int}. They are checked from _process instead of
+# an awaited loop, so imports finish right away and a script reload (which
+# cancels suspended coroutines) cannot leave an import hanging.
+var _pending_files: Dictionary = {}
+var _register_cooldown := 0.0
+
 
 ## Extracts an asset and builds its resources. Returns the created paths
 ## (empty on failure).
@@ -70,7 +77,7 @@ func extract_all(
 		for path in created:
 			# Textures are picked up by the scan; generated resources need help.
 			if path.get_extension() in ["tres", "tscn"]:
-				await _register_file(file_sys, path)
+				_pending_files[path] = {"attempts": 0, "stable": 0}
 
 	_log_info("Success! Resources created and folders populated")
 	_emit_extraction_completed(asset_name, final_extract_path)
@@ -192,32 +199,43 @@ func _check(err: Error, path: String) -> bool:
 	return err == OK
 
 
-# Registers a newly written file with the editor's FileSystem dock.
+# Registers newly written files with the editor's FileSystem dock.
 # update_file() does nothing for folders the editor has not scanned yet, and
-# a scan that started before the file was written replaces the file list
-# with a stale snapshot when it finishes. So keep (re)registering the file
-# until it has stayed listed through a few quiet checks in a row.
-func _register_file(file_sys: Variant, path: String) -> void:
-	var stable_checks := 0
-	for _attempt in 40:
-		await _wait_for_scan(file_sys)
+# a scan that started before a file was written replaces the file list with a
+# stale snapshot when it finishes. So keep (re)registering each file until it
+# has stayed listed through a few quiet checks in a row.
+func _process(delta: float) -> void:
+	if _pending_files.is_empty():
+		return
+	_register_cooldown -= delta
+	var file_sys = _get_filesystem()
+	if _register_cooldown > 0.0 or (file_sys and file_sys.is_scanning()):
+		return
+	_register_cooldown = 0.5
+	if not file_sys:
+		_pending_files.clear()
+		return
+
+	var needs_scan := false
+	for path in _pending_files.keys():
+		var state: Dictionary = _pending_files[path]
+		state["attempts"] += 1
 		if file_sys.get_filesystem_path(path.get_base_dir()) == null:
-			stable_checks = 0
-			file_sys.scan()
+			state["stable"] = 0
+			needs_scan = true
 		elif file_sys.get_file_type(path).is_empty():
-			stable_checks = 0
+			state["stable"] = 0
 			file_sys.update_file(path)
 		else:
-			stable_checks += 1
-			if stable_checks >= 4:
-				return
-		await get_tree().create_timer(0.5).timeout
-	_log_warn("Editor did not pick up %s; it will appear after a rescan" % path)
+			state["stable"] += 1
 
-
-func _wait_for_scan(file_sys: Variant) -> void:
-	while file_sys.is_scanning():
-		await get_tree().process_frame
+		if state["stable"] >= 4:
+			_pending_files.erase(path)
+		elif state["attempts"] >= 40:
+			_pending_files.erase(path)
+			_log_warn("Editor did not pick up %s; it will appear after a rescan" % path)
+	if needs_scan:
+		file_sys.scan()
 
 
 func _process_image_scaling(path: String, options: Dictionary) -> void:

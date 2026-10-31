@@ -5,9 +5,11 @@ var Utils = load("res://addons/ambientcg/utils/ambient_utils.gd")
 
 func test_format_file_size():
 	assert_eq(Utils.format_file_size(500), "500 B")
-	assert_eq(Utils.format_file_size(1024), "1.00 KiB")
-	assert_eq(Utils.format_file_size(1024 * 1024), "1.00 MiB")
-	assert_eq(Utils.format_file_size(1024 * 1024 * 1024), "1.00 GiB")
+	assert_eq(Utils.format_file_size(1500), "1.5 KB")
+	assert_eq(Utils.format_file_size(7_484_000), "7.48 MB")
+	assert_eq(Utils.format_file_size(12_000_000), "12 MB")
+	assert_eq(Utils.format_file_size(999_999), "1 MB", "Rounds up into the next unit")
+	assert_eq(Utils.format_file_size(2_345_678_901), "2.35 GB")
 
 
 func test_ensure_dir():
