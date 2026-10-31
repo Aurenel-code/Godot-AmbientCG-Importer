@@ -65,11 +65,29 @@ static func is_trusted_url(url: String) -> bool:
 
 # Resolves a redirect Location header against the URL that returned it.
 static func resolve_redirect(base_url: String, location: String) -> String:
+	location = encode_unsafe_url_chars(location)
 	if location.begins_with("//"):
 		return "https:" + location
 	if location.begins_with("/"):
 		return "https://" + base_url.substr(8).get_slice("/", 0) + location
 	return location
+
+
+# Percent-encodes characters that are not allowed in a URL, such as the
+# spaces and "^" in some download locations ("3^Additional Maps/..."),
+# which the download server rejects when sent unencoded.
+static func encode_unsafe_url_chars(url: String) -> String:
+	const ALLOWED = "-._~:/?#[]@!$&'()*+,;=%"
+	var out := ""
+	for c in url:
+		var code := c.unicode_at(0)
+		var is_alnum := (
+			(code >= 48 and code <= 57)
+			or (code >= 65 and code <= 90)
+			or (code >= 97 and code <= 122)
+		)
+		out += c if is_alnum or ALLOWED.contains(c) else c.uri_encode()
+	return out
 
 
 # Replaces anything that is not a letter, digit, "_" or "-" so API values

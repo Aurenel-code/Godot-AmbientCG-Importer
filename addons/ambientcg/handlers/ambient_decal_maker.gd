@@ -24,12 +24,11 @@ static func write_decal_scene(
 		return ERR_CANT_OPEN
 	var size := albedo.get_size()
 
-	var albedo_path: String = maps["albedo"]
-	if maps.has("opacity"):
-		albedo_path = bake_dir.path_join(node_name + "_DecalAlbedo.png")
-		var err := bake_albedo_with_opacity(albedo, maps["opacity"], albedo_path)
-		if err != OK:
-			return err
+	var albedo_path := MaterialMaker.prepare_transparent_albedo(
+		albedo, maps, bake_dir.path_join(node_name + "_DecalAlbedo.png")
+	)
+	if albedo_path.is_empty():
+		return ERR_CANT_CREATE
 
 	var writer := Writer.new()
 	var props := {
@@ -46,31 +45,6 @@ static func write_decal_scene(
 		props["texture_orm"] = writer.ext("Texture2D", orm_path)
 
 	return Writer.save_text(path, writer.build_scene(node_name, "Decal", props))
-
-
-## Copies the opacity map into the alpha channel of the albedo image.
-static func bake_albedo_with_opacity(
-	albedo: Image, opacity_path: String, out_path: String
-) -> Error:
-	var opacity := Image.load_from_file(opacity_path)
-	if not opacity or opacity.is_empty():
-		return ERR_CANT_OPEN
-
-	var color := albedo.duplicate() as Image
-	color.convert(Image.FORMAT_RGBA8)
-	opacity.convert(Image.FORMAT_L8)
-	if opacity.get_size() != color.get_size():
-		opacity.resize(color.get_width(), color.get_height())
-
-	var rgba := color.get_data()
-	var alpha := opacity.get_data()
-	for i in alpha.size():
-		rgba[i * 4 + 3] = alpha[i]
-
-	var out := Image.create_from_data(
-		color.get_width(), color.get_height(), false, Image.FORMAT_RGBA8, rgba
-	)
-	return out.save_png(out_path)
 
 
 ## Packs AO (R), roughness (G) and metalness (B) into one texture.

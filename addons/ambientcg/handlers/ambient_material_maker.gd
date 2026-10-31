@@ -1,6 +1,8 @@
 @tool
 # AmbientMaterialMaker
 # Writes StandardMaterial3D resources for ambientCG texture sets.
+# Godot reads transparency from the albedo alpha, so sets with a separate
+# opacity map get it baked into a PNG copy of the color map.
 
 const Writer = preload("res://addons/ambientcg/handlers/ambient_resource_writer.gd")
 
@@ -42,6 +44,10 @@ static func build_material_properties(
 	var props := {}
 	if triplanar:
 		props["uv1_triplanar"] = true
+	# Every ambientCG atlas is a set of cut-outs on a transparent background.
+	if maps.has("opacity") or options.get("asset_type", "") == "atlas":
+		props["transparency"] = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+		props["cull_mode"] = BaseMaterial3D.CULL_DISABLED
 	if maps.has("albedo"):
 		props["albedo_texture"] = writer.ext("Texture2D", maps["albedo"])
 	if maps.has("metallic"):
@@ -68,6 +74,53 @@ static func build_material_properties(
 static func write_standard_material(
 	path: String, files: PackedStringArray, options: Dictionary
 ) -> Error:
+	var maps := classify_textures(files)
+	if maps.has("albedo") and maps.has("opacity"):
+		var albedo := Image.load_from_file(maps["albedo"])
+		if not albedo or albedo.is_empty():
+			return ERR_CANT_OPEN
+		var baked_path: String = maps["albedo"].get_basename() + "Alpha.png"
+		var albedo_path := prepare_transparent_albedo(albedo, maps, baked_path)
+		if albedo_path.is_empty():
+			return ERR_CANT_CREATE
+		maps["albedo"] = albedo_path
+
 	var writer := Writer.new()
-	var props := build_material_properties(writer, classify_textures(files), options)
+	var props := build_material_properties(writer, maps, options)
 	return Writer.save_text(path, writer.build_resource("StandardMaterial3D", props))
+
+
+## Returns the albedo texture for a set with an opacity map: the color map
+## itself when it already carries alpha (PNG sets), otherwise out_path with
+## the opacity baked in. Returns an empty string on failure.
+static func prepare_transparent_albedo(albedo: Image, maps: Dictionary, out_path: String) -> String:
+	if not maps.has("opacity") or albedo.detect_alpha() != Image.ALPHA_NONE:
+		return maps["albedo"]
+	if bake_albedo_with_opacity(albedo, maps["opacity"], out_path) != OK:
+		return ""
+	return out_path
+
+
+## Copies the opacity map into the alpha channel of the albedo image.
+static func bake_albedo_with_opacity(
+	albedo: Image, opacity_path: String, out_path: String
+) -> Error:
+	var opacity := Image.load_from_file(opacity_path)
+	if not opacity or opacity.is_empty():
+		return ERR_CANT_OPEN
+
+	var color := albedo.duplicate() as Image
+	color.convert(Image.FORMAT_RGBA8)
+	opacity.convert(Image.FORMAT_L8)
+	if opacity.get_size() != color.get_size():
+		opacity.resize(color.get_width(), color.get_height())
+
+	var rgba := color.get_data()
+	var alpha := opacity.get_data()
+	for i in alpha.size():
+		rgba[i * 4 + 3] = alpha[i]
+
+	var out := Image.create_from_data(
+		color.get_width(), color.get_height(), false, Image.FORMAT_RGBA8, rgba
+	)
+	return out.save_png(out_path)

@@ -14,17 +14,12 @@ grow_vertical = 2
 theme_override_constants/separation = 0
 script = ExtResource("1_script")
 
-[node name="VSplit" type="VSplitContainer" parent="."]
-layout_mode = 2
-size_flags_vertical = 3
-split_offset = 200
-
-[node name="InspectorScroll" type="ScrollContainer" parent="VSplit"]
+[node name="InspectorScroll" type="ScrollContainer" parent="."]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Margin" type="MarginContainer" parent="VSplit/InspectorScroll"]
+[node name="Margin" type="MarginContainer" parent="InspectorScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/margin_left = 10
@@ -32,102 +27,66 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="VBox" type="VBoxContainer" parent="VSplit/InspectorScroll/Margin"]
+[node name="VBox" type="VBoxContainer" parent="InspectorScroll/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 15
 
-[node name="ManualIdInput" type="HBoxContainer" parent="VSplit/InspectorScroll/Margin/VBox"]
+[node name="ManualIdInput" type="HBoxContainer" parent="InspectorScroll/Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="IdEdit" type="LineEdit" parent="VSplit/InspectorScroll/Margin/VBox/ManualIdInput"]
+[node name="IdEdit" type="LineEdit" parent="InspectorScroll/Margin/VBox/ManualIdInput"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Enter Asset ID..."
 alignment = 1
 
-[node name="LoadButton" type="Button" parent="VSplit/InspectorScroll/Margin/VBox/ManualIdInput"]
+[node name="LoadButton" type="Button" parent="InspectorScroll/Margin/VBox/ManualIdInput"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Load"
 
-[node name="AssetInspector" type="VBoxContainer" parent="VSplit/InspectorScroll/Margin/VBox"]
+[node name="AssetInspector" type="VBoxContainer" parent="InspectorScroll/Margin/VBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="InspectorTitle" type="Label" parent="VSplit/InspectorScroll/Margin/VBox/AssetInspector"]
+[node name="InspectorTitle" type="Label" parent="InspectorScroll/Margin/VBox/AssetInspector"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "Asset Details"
 
-[node name="HSeparator" type="HSeparator" parent="VSplit/InspectorScroll/Margin/VBox/AssetInspector"]
+[node name="HSeparator" type="HSeparator" parent="InspectorScroll/Margin/VBox/AssetInspector"]
 layout_mode = 2
 
-[node name="PreviewRect" type="TextureRect" parent="VSplit/InspectorScroll/Margin/VBox/AssetInspector"]
+[node name="PreviewRect" type="TextureRect" parent="InspectorScroll/Margin/VBox/AssetInspector"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="AssetTitle" type="Label" parent="VSplit/InspectorScroll/Margin/VBox/AssetInspector"]
+[node name="AssetTitle" type="Label" parent="InspectorScroll/Margin/VBox/AssetInspector"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Asset Name"
 autowrap_mode = 3
 
-[node name="GroupsContainer" type="VBoxContainer" parent="VSplit/InspectorScroll/Margin/VBox/AssetInspector"]
+[node name="GroupsContainer" type="VBoxContainer" parent="InspectorScroll/Margin/VBox/AssetInspector"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 15
 
-[node name="SidebarPlaceholder" type="CenterContainer" parent="VSplit/InspectorScroll/Margin/VBox"]
+[node name="SidebarPlaceholder" type="CenterContainer" parent="InspectorScroll/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Label" type="Label" parent="VSplit/InspectorScroll/Margin/VBox/SidebarPlaceholder"]
+[node name="Label" type="Label" parent="InspectorScroll/Margin/VBox/SidebarPlaceholder"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.666667, 0.666667, 0.666667, 1)
 text = "Select an asset to see details"
 horizontal_alignment = 1
-
-[node name="DownloadSection" type="VBoxContainer" parent="VSplit"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 5
-
-[node name="Margin" type="MarginContainer" parent="VSplit/DownloadSection"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
-
-[node name="VBox" type="VBoxContainer" parent="VSplit/DownloadSection/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 5
-
-[node name="SidebarTitle" type="Label" parent="VSplit/DownloadSection/Margin/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Active Downloads"
-horizontal_alignment = 1
-
-[node name="HSeparator" type="HSeparator" parent="VSplit/DownloadSection/Margin/VBox"]
-layout_mode = 2
-
-[node name="DownloadScroll" type="ScrollContainer" parent="VSplit/DownloadSection/Margin/VBox"]
-layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="DownloadList" type="VBoxContainer" parent="VSplit/DownloadSection/Margin/VBox/DownloadScroll"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 4

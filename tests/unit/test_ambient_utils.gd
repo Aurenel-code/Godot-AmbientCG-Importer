@@ -61,6 +61,19 @@ func test_resolve_redirect():
 	assert_eq(Utils.resolve_redirect(base, "https://x.test/a.zip"), "https://x.test/a.zip")
 
 
+func test_resolve_redirect_encodes_spaces_and_carets():
+	var base = "https://ambientcg.com/get?file=Terrain005_1K-JPG.zip"
+	var location = "https://cdn.test/download/T_a8/3^Additional Maps/T_1K-JPG.zip"
+	assert_eq(
+		Utils.resolve_redirect(base, location),
+		"https://cdn.test/download/T_a8/3%5EAdditional%20Maps/T_1K-JPG.zip"
+	)
+	assert_eq(
+		Utils.encode_unsafe_url_chars("https://a.test/x%20y?f=1&g=2"),
+		"https://a.test/x%20y?f=1&g=2"
+	)
+
+
 func test_sanitize_file_component():
 	assert_eq(Utils.sanitize_file_component("Bricks113A"), "Bricks113A")
 	assert_eq(Utils.sanitize_file_component("1K-JPG"), "1K-JPG")

@@ -39,6 +39,7 @@ static func parse_assets(json: Dictionary) -> Dictionary:
 		asset["asset_type"] = _get_asset_type(asset_json)
 		if asset["asset_type"] in UNSUPPORTED_TYPES:
 			continue
+		asset["has_transparency"] = _has_transparency(asset_json, asset["asset_type"])
 
 		var downloads: Array = []
 		var implementation_uris: Dictionary = {}
@@ -48,6 +49,8 @@ static func parse_assets(json: Dictionary) -> Dictionary:
 				continue
 			var download = {
 				"asset_type": asset["asset_type"],
+				"has_transparency": asset["has_transparency"],
+				"attributes": str(download_json.get("attributes", "")),
 				"id": asset["id"] + "_" + download_json.get("attributes", ""),
 				"uri": download_json.get("url", ""),
 				"file_size": download_json.get("size", 0),
@@ -64,6 +67,7 @@ static func parse_assets(json: Dictionary) -> Dictionary:
 			downloads.append(download)
 			implementation_uris[download_json.get("attributes", "")] = download["uri"]
 
+		_link_png_alternatives(downloads)
 		asset["download_data"] = downloads
 		asset["implementation_uris"] = implementation_uris
 		assets.append(asset)
@@ -78,6 +82,29 @@ static func _get_asset_type(asset_json: Dictionary) -> String:
 		return asset_type.to_lower()
 	# Older responses without "type": fall back to the asset ID.
 	return "hdri" if str(asset_json.get("id", "")).to_lower().contains("hdri") else "material"
+
+
+# The API lists an asset's maps; transparent assets have an opacity map.
+static func _has_transparency(asset_json: Dictionary, asset_type: String) -> bool:
+	if asset_type == "atlas":
+		return true
+	var maps = asset_json.get("maps", [])
+	return maps is Array and "opacity" in maps
+
+
+# Gives every JPG download the matching PNG download ("1K-JPG" -> "1K-PNG"),
+# so the user can switch when a JPG cannot hold transparency.
+static func _link_png_alternatives(downloads: Array) -> void:
+	var by_attributes := {}
+	for download in downloads:
+		by_attributes[download["attributes"] + "." + str(download["extension"])] = download
+	for download in downloads:
+		var attributes: String = download["attributes"]
+		if not attributes.contains("JPG"):
+			continue
+		var key: String = attributes.replace("JPG", "PNG") + "." + str(download["extension"])
+		if by_attributes.has(key):
+			download["png_alternative"] = by_attributes[key].duplicate()
 
 
 static func pull_tres_dependencies(zip_reader: ZIPReader, tres_file: String) -> Dictionary:

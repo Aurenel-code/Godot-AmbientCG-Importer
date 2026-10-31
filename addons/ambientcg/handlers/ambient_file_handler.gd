@@ -51,5 +51,6 @@ func extract_all(source_file: String, target_path: String = "", options: Diction
 
 
 func check_dirs() -> void:
+	config.migrate_legacy_defaults()
 	for setting in config.PATH_DEFAULTS:
 		utils.ensure_dir(config.get_setting(setting, config.PATH_DEFAULTS[setting]))

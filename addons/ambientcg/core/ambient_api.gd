@@ -189,7 +189,7 @@ func search_assets(
 			override_uri if override_uri.begins_with("http") else config.BASE_DOMAIN + override_uri
 		)
 	else:
-		final_uri = config.HOME_URL + "assets?limit=100&include=downloads,thumbnails,type"
+		final_uri = config.HOME_URL + "assets?limit=100&include=downloads,thumbnails,type,maps"
 		if not exact_id.is_empty():
 			final_uri += "&id=" + exact_id.uri_encode()
 		if not query.is_empty():

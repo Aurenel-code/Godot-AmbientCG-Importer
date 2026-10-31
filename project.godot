@@ -12,7 +12,7 @@ config_version=5
 
 extract_path="res://ambientcg/extracted"
 material_file_directory="res://ambientcg/materials"
-environment_file_directory="res://ambientcg/environments"
+environment_file_directory="res://ambientcg/hdris"
 test_setting="hello_world"
 
 [animation]

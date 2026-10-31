@@ -1,9 +1,6 @@
 @tool
 extends VBoxContainer
 
-const DOWNLOAD_ITEM_SCENE = preload(
-	"res://addons/ambientcg/ui/components/download/download_item.tscn"
-)
 const CONFIG = preload("res://addons/ambientcg/core/ambient_config.gd")
 const UI_HELPERS = preload("res://addons/ambientcg/utils/ui_helpers.gd")
 
@@ -18,7 +15,6 @@ var _last_request_id: int = 0
 @onready var asset_title: Label = %AssetTitle
 @onready var preview_rect: TextureRect = %PreviewRect
 @onready var groups_container: VBoxContainer = %GroupsContainer
-@onready var download_list: VBoxContainer = %DownloadList
 @onready var id_edit: LineEdit = %IdEdit
 @onready var load_button: Button = %LoadButton
 
@@ -26,9 +22,6 @@ var _last_request_id: int = 0
 func _ready() -> void:
 	asset_inspector.hide()
 	sidebar_placeholder.show()
-	var ambient_cg = CONFIG.get_instance(self)
-	if ambient_cg:
-		ambient_cg.signals.download_started.connect(_on_download_started)
 	id_edit.text_submitted.connect(_on_manual_id_submitted)
 	load_button.pressed.connect(func(): _on_manual_id_submitted(id_edit.text))
 
@@ -202,12 +195,6 @@ func _load_preview(url: String, request_id: int) -> void:
 
 	if texture:
 		preview_rect.texture = texture
-
-
-func _on_download_started(_url: String, asset_name: String, asset_type: String) -> void:
-	var item = DOWNLOAD_ITEM_SCENE.instantiate()
-	download_list.add_child(item)
-	item.setup(_url, asset_name, asset_type)
 
 
 func _group_implementations(

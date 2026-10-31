@@ -11,7 +11,7 @@ const SETTING_ASK_BEFORE_DOWNLOAD = "ambientcg/ask_before_download"
 const DEFAULT_DOWNLOAD_PATH = "res://ambientcg/temp"
 const DEFAULT_EXTRACT_PATH = "res://ambientcg/extracted"
 const DEFAULT_MATERIAL_DIR = "res://ambientcg/materials"
-const DEFAULT_ENVIRONMENT_DIR = "res://ambientcg/environments"
+const DEFAULT_ENVIRONMENT_DIR = "res://ambientcg/hdris"
 const DEFAULT_DECAL_DIR = "res://ambientcg/decals"
 const DEFAULT_MODEL_DIR = "res://ambientcg/models"
 
@@ -22,6 +22,12 @@ const PATH_DEFAULTS = {
 	SETTING_ENVIRONMENT_DIR: DEFAULT_ENVIRONMENT_DIR,
 	SETTING_DECAL_DIR: DEFAULT_DECAL_DIR,
 	SETTING_MODEL_DIR: DEFAULT_MODEL_DIR,
+}
+
+# Earlier defaults that projects may still have saved; they are moved to the
+# current default the next time the plugin checks its folders.
+const LEGACY_PATH_DEFAULTS = {
+	SETTING_ENVIRONMENT_DIR: "res://ambientcg/environments",
 }
 
 const HOME_URL = "https://ambientcg.com/api/v3/"
@@ -39,6 +45,12 @@ static func get_setting(key: String, default_value: Variant) -> Variant:
 
 static func get_default(key: String) -> Variant:
 	return PATH_DEFAULTS.get(key)
+
+
+static func migrate_legacy_defaults() -> void:
+	for key in LEGACY_PATH_DEFAULTS:
+		if ProjectSettings.has_setting(key) and get_setting(key, "") == LEGACY_PATH_DEFAULTS[key]:
+			set_setting(key, PATH_DEFAULTS[key])
 
 
 static func get_instance(node: Node) -> Node:

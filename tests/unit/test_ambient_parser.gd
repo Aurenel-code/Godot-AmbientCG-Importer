@@ -62,6 +62,37 @@ func test_parse_assets_types_and_filters():
 	assert_eq(assets[1].get("asset_type"), "hdri", "Falls back to the ID without a type")
 
 
+func test_parse_assets_transparency_and_png_alternative():
+	var mock_json = {
+		"assets":
+		[
+			{
+				"id": "Manhole",
+				"type": "decal",
+				"maps": ["color", "opacity"],
+				"downloads":
+				[
+					{"attributes": "1K-JPG", "url": "https://ambientcg.com/j", "extension": "zip"},
+					{"attributes": "1K-PNG", "url": "https://ambientcg.com/p", "extension": "zip"},
+					{"attributes": "2K-JPG", "url": "https://ambientcg.com/j2", "extension": "zip"},
+				]
+			},
+			{"id": "Graffiti", "type": "atlas", "maps": ["color"], "downloads": []},
+			{"id": "Bricks", "type": "material", "maps": ["color", "normal"], "downloads": []},
+		]
+	}
+	var assets = Parser.parse_assets(mock_json).get("assets")
+	assert_true(assets[0].get("has_transparency"), "An opacity map means transparency")
+	assert_true(assets[1].get("has_transparency"), "Atlases are always transparent")
+	assert_false(assets[2].get("has_transparency"))
+
+	var downloads = assets[0].get("download_data")
+	assert_true(downloads[0].get("has_transparency"))
+	assert_eq(downloads[0].get("png_alternative", {}).get("uri"), "https://ambientcg.com/p")
+	assert_false(downloads[1].has("png_alternative"), "PNG downloads need no alternative")
+	assert_false(downloads[2].has("png_alternative"), "No 2K PNG exists")
+
+
 func test_api_info_to_option_button():
 	var button = OptionButton.new()
 	Parser.api_info_to_option_button(
