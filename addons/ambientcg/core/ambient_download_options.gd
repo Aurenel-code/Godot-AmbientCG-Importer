@@ -1,9 +1,10 @@
 @tool
 # AmbientDownloadOptions
 # Turns an asset's ambientCG downloads into the choices offered in the import
-# panel (file format, resolution, model quality) and builds the download for
-# a choice. WEBP sets are made from the PNG set while importing, and sizes
-# ambientCG does not offer are downscaled from the next larger set.
+# panel (file format, a resolution per texture channel, model quality) and
+# builds the download for a choice. The set that covers the largest chosen
+# resolution is downloaded; WEBP is made from the PNG set and channels set
+# to a smaller resolution are downscaled while importing.
 
 const FORMATS = ["png", "jpg", "webp_lossless", "webp_lossy"]
 const FORMAT_LABELS = {
@@ -26,11 +27,38 @@ const FORMAT_TAGS = {
 	"webp_lossless": "WEBP-LOSSLESS",
 	"webp_lossy": "WEBP-LOSSY",
 }
-const DEFAULT_FORMAT = "webp_lossless"
 
-# Sizes (in pixels) a texture set can be downscaled to.
+# Sizes (in pixels) a texture can be downscaled to.
 const DOWNSCALE_SIZES = [256, 512, 1024, 2048, 4096, 8192]
-const DEFAULT_SIZE = 2048
+
+# Texture channels, named as the API lists an asset's maps.
+const CHANNELS = [
+	"color", "normal", "roughness", "metalness", "ambient-occlusion", "displacement", "emission"
+]
+const CHANNEL_LABELS = {
+	"color": "Color",
+	"normal": "Normal",
+	"roughness": "Roughness",
+	"metalness": "Metalness",
+	"ambient-occlusion": "Ambient Occlusion",
+	"displacement": "Displacement",
+	"emission": "Emission",
+}
+# Shown when the API does not list an asset's maps.
+const COMMON_CHANNELS = ["color", "normal", "roughness", "ambient-occlusion", "displacement"]
+# Last "_"-separated part of a texture file name -> its channel. The opacity
+# map is merged into the color map, so it shares its resolution.
+const FILE_SUFFIX_CHANNELS = {
+	"color": "color",
+	"opacity": "color",
+	"normalgl": "normal",
+	"normaldx": "normal",
+	"roughness": "roughness",
+	"metalness": "metalness",
+	"ambientocclusion": "ambient-occlusion",
+	"displacement": "displacement",
+	"emission": "emission",
+}
 
 # 3D model levels of detail, from fewest to most polygons.
 const LODS = ["LQ", "SQ", "HQ"]
@@ -39,7 +67,6 @@ const LOD_LABELS = {
 	"SQ": "SQ (Medium Poly)",
 	"HQ": "HQ (High Poly)",
 }
-const DEFAULT_LOD = "LQ"
 
 
 ## Splits ambientCG download attributes into their parts:
@@ -94,12 +121,25 @@ static func get_sizes(
 	return result
 
 
-## 2K when offered, otherwise the largest smaller size, otherwise the
-## smallest larger one.
-static func pick_default_size(sizes: Array) -> int:
+## The texture channels to offer resolutions for, from the asset's map list.
+static func get_channels(asset_maps: Array) -> Array:
+	var channels := CHANNELS.filter(func(c): return c in asset_maps)
+	return channels if not channels.is_empty() else COMMON_CHANNELS.duplicate()
+
+
+## The channel a texture file belongs to ("" if unknown).
+static func channel_of(file_path: String) -> String:
+	var base_name := file_path.get_file().get_basename()
+	var suffix := base_name.get_slice("_", base_name.get_slice_count("_") - 1).to_lower()
+	return FILE_SUFFIX_CHANNELS.get(suffix, "")
+
+
+## The preferred size when offered, otherwise the largest smaller size,
+## otherwise the smallest larger one.
+static func pick_default_size(sizes: Array, preferred: int) -> int:
 	var best := 0
 	for size in sizes:
-		if size <= DEFAULT_SIZE and size > best:
+		if size <= preferred and size > best:
 			best = size
 	if best == 0 and not sizes.is_empty():
 		best = sizes.min()
@@ -121,8 +161,14 @@ static func find_source(downloads: Array, format: String, lod: String, size: int
 
 ## Builds the download for a choice: the source download plus the name the
 ## result is imported under and the import steps (downscale, conversion).
+## channel_sizes maps channels to their resolution; the set that covers the
+## largest one is downloaded, and size is used when it is empty (HDRIs).
 ## Returns an empty dictionary if the choice cannot be downloaded.
-static func build_download(downloads: Array, format: String, lod: String, size: int) -> Dictionary:
+static func build_download(
+	downloads: Array, format: String, lod: String, size: int, channel_sizes: Dictionary = {}
+) -> Dictionary:
+	if not channel_sizes.is_empty():
+		size = channel_sizes.values().max()
 	var source := find_source(downloads, format, lod, size)
 	if source.is_empty():
 		return {}
@@ -146,6 +192,7 @@ static func build_download(downloads: Array, format: String, lod: String, size: 
 		"source_attributes": source_attributes,
 		"target_attributes": target_attributes,
 		"target_size": size if size < source_size else 0,
+		"channel_sizes": channel_sizes.duplicate(),
 		"convert_to": format if format.begins_with("webp") else "",
 		"has_transparency": source.get("has_transparency", false),
 	}

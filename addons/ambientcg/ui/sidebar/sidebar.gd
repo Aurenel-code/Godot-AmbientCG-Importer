@@ -13,8 +13,10 @@ var _parsed_implementations: Array[Dictionary] = []
 var _last_request_id: int = 0
 
 var _format_options: OptionButton
-var _size_options: OptionButton
 var _lod_options: OptionButton
+# HDRIs have one resolution; texture sets have one per channel.
+var _size_options: OptionButton
+var _channel_options: Dictionary = {}
 var _download_button: Button
 var _download_note: Label
 
@@ -100,21 +102,38 @@ func _build_download_ui() -> void:
 		groups_container.add_child(err_label)
 		return
 
+	var is_hdri: bool = asset_data.get("asset_type", "") == "hdri"
 	var formats := OPTIONS.get_formats(_parsed_implementations)
 	_format_options = _add_option_row("File Format")
 	for format in formats:
 		_add_option(_format_options, OPTIONS.FORMAT_LABELS[format], format)
-	_select_metadata(_format_options, OPTIONS.DEFAULT_FORMAT)
+	_select_metadata(_format_options, CONFIG.get_value(CONFIG.SETTING_DEFAULT_FORMAT))
 	_format_options.get_parent().visible = not formats.is_empty()
-
-	_size_options = _add_option_row("Resolution")
 
 	var lods := OPTIONS.get_lods(_parsed_implementations)
 	_lod_options = _add_option_row("Model Quality")
 	for lod in lods:
 		_add_option(_lod_options, OPTIONS.LOD_LABELS[lod], lod)
-	_select_metadata(_lod_options, OPTIONS.DEFAULT_LOD)
+	_select_metadata(_lod_options, CONFIG.get_value(CONFIG.SETTING_DEFAULT_MODEL_QUALITY))
 	_lod_options.get_parent().visible = not lods.is_empty()
+
+	_size_options = null
+	_channel_options.clear()
+	if is_hdri:
+		_size_options = _add_option_row("Resolution")
+		_size_options.item_selected.connect(func(_i): _refresh_download())
+	else:
+		var header := Label.new()
+		header.text = "Texture Resolution"
+		groups_container.add_child(header)
+		var maps: Array = asset_data.get("maps", [])
+		for channel in OPTIONS.get_channels(maps):
+			var label_text: String = OPTIONS.CHANNEL_LABELS[channel]
+			if channel == "color" and asset_data.get("has_transparency", false):
+				label_text = "Color + Opacity"
+			var options := _add_option_row(label_text)
+			options.item_selected.connect(func(_i): _refresh_download())
+			_channel_options[channel] = options
 
 	_download_button = Button.new()
 	_download_button.custom_minimum_size = Vector2(0, 32)
@@ -129,7 +148,6 @@ func _build_download_ui() -> void:
 
 	_format_options.item_selected.connect(func(_i): _refresh_sizes())
 	_lod_options.item_selected.connect(func(_i): _refresh_sizes())
-	_size_options.item_selected.connect(func(_i): _refresh_download())
 	_refresh_sizes()
 
 
@@ -137,7 +155,7 @@ func _add_option_row(label_text: String) -> OptionButton:
 	var row := HBoxContainer.new()
 	var label := Label.new()
 	label.text = label_text
-	label.custom_minimum_size = Vector2(100, 0)
+	label.custom_minimum_size = Vector2(120, 0)
 	row.add_child(label)
 	var options := OptionButton.new()
 	options.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -166,26 +184,28 @@ static func _selected_metadata(options: OptionButton, fallback: Variant) -> Vari
 
 
 # Lists the resolutions for the chosen format and model quality, keeping the
-# current choice when it is still available.
+# current choices when they are still available.
 func _refresh_sizes() -> void:
 	var format: String = _selected_metadata(_format_options, "")
 	var lod: String = _selected_metadata(_lod_options, "")
-	var previous: int = _selected_metadata(_size_options, 0)
-	# HDRIs are only offered in the sizes ambientCG has.
-	var allow_downscale: bool = asset_data.get("asset_type", "") != "hdri"
-	var sizes := OPTIONS.get_sizes(_parsed_implementations, format, lod, allow_downscale)
-
-	_size_options.clear()
-	for size in sizes:
-		var source := OPTIONS.find_source(_parsed_implementations, format, lod, size)
-		var source_size: int = OPTIONS.parse_attributes(source["attributes"])["size"]
-		var text := OPTIONS.size_label(size)
-		if source_size > size:
-			text += " (from %s)" % OPTIONS.size_label(source_size)
-		_add_option(_size_options, text, size)
-	if not _select_metadata(_size_options, previous):
-		_select_metadata(_size_options, OPTIONS.pick_default_size(sizes))
+	if _size_options:
+		# HDRIs are only offered in the sizes ambientCG has.
+		var hdri_sizes := OPTIONS.get_sizes(_parsed_implementations, format, lod, false)
+		_fill_sizes(_size_options, hdri_sizes, CONFIG.get_value(CONFIG.SETTING_DEFAULT_HDRI_SIZE))
+	var sizes := OPTIONS.get_sizes(_parsed_implementations, format, lod, true)
+	for channel in _channel_options:
+		var preferred: int = CONFIG.get_value(CONFIG.channel_size_setting(channel))
+		_fill_sizes(_channel_options[channel], sizes, preferred)
 	_refresh_download()
+
+
+static func _fill_sizes(options: OptionButton, sizes: Array, preferred: int) -> void:
+	var previous: int = _selected_metadata(options, 0)
+	options.clear()
+	for size in sizes:
+		_add_option(options, OPTIONS.size_label(size), size)
+	if not _select_metadata(options, previous):
+		_select_metadata(options, OPTIONS.pick_default_size(sizes, preferred))
 
 
 func _refresh_download() -> void:
@@ -198,25 +218,50 @@ func _refresh_download() -> void:
 
 	_download_button.text = "Download (%s)" % UTILS.format_file_size(download.get("file_size", 0))
 	var import_options: Dictionary = download["import_options"]
+	var source_size: int = OPTIONS.parse_attributes(import_options["source_attributes"])["size"]
 	var steps := PackedStringArray()
-	if import_options["target_size"] > 0:
-		steps.append("downscaled to %s" % OPTIONS.size_label(import_options["target_size"]))
+	var downscaled := _describe_downscaled(import_options["channel_sizes"], source_size)
+	if not downscaled.is_empty():
+		steps.append("downscales %s" % downscaled)
 	if not import_options["convert_to"].is_empty():
-		steps.append("converted to %s" % OPTIONS.FORMAT_LABELS[import_options["convert_to"]])
+		steps.append("converts to %s" % OPTIONS.FORMAT_LABELS[import_options["convert_to"]])
 	_download_note.text = "Imported as %s" % download["attributes"]
 	if not steps.is_empty():
 		_download_note.text = (
-			"Downloads the %s set, %s while importing."
+			"Downloads the %s set, then %s while importing."
 			% [import_options["source_attributes"], " and ".join(steps)]
 		)
 
 
+# "Color to 1K, Roughness/Ambient Occlusion to 512" for the channels that are
+# smaller than the downloaded set.
+static func _describe_downscaled(channel_sizes: Dictionary, source_size: int) -> String:
+	var by_size := {}
+	for channel in channel_sizes:
+		var size: int = channel_sizes[channel]
+		if size < source_size:
+			if not by_size.has(size):
+				by_size[size] = PackedStringArray()
+			by_size[size].append(OPTIONS.CHANNEL_LABELS[channel])
+	var sizes := by_size.keys()
+	sizes.sort()
+	sizes.reverse()
+	var parts := PackedStringArray()
+	for size in sizes:
+		parts.append("%s to %s" % ["/".join(by_size[size]), OPTIONS.size_label(size)])
+	return ", ".join(parts)
+
+
 func _build_selected_download() -> Dictionary:
+	var channel_sizes := {}
+	for channel in _channel_options:
+		channel_sizes[channel] = _selected_metadata(_channel_options[channel], 0)
 	return OPTIONS.build_download(
 		_parsed_implementations,
 		_selected_metadata(_format_options, ""),
 		_selected_metadata(_lod_options, ""),
-		_selected_metadata(_size_options, 0)
+		_selected_metadata(_size_options, 0) if _size_options else 0,
+		channel_sizes
 	)
 
 

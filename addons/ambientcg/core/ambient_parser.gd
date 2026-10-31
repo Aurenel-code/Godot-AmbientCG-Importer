@@ -41,6 +41,8 @@ static func parse_assets(json: Dictionary) -> Dictionary:
 		if asset["asset_type"] in UNSUPPORTED_TYPES:
 			continue
 		asset["has_transparency"] = _has_transparency(asset_json, asset["asset_type"])
+		var maps = asset_json.get("maps", [])
+		asset["maps"] = maps if maps is Array else []
 
 		var downloads: Array = []
 		var implementation_uris: Dictionary = {}

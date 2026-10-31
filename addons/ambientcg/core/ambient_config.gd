@@ -8,6 +8,9 @@ const SETTING_DECAL_DIR = "ambientcg/decal_file_directory"
 const SETTING_MODEL_DIR = "ambientcg/model_file_directory"
 const SETTING_ATLAS_DIR = "ambientcg/atlas_file_directory"
 const SETTING_ASK_BEFORE_DOWNLOAD = "ambientcg/ask_before_download"
+const SETTING_DEFAULT_FORMAT = "ambientcg/default_format"
+const SETTING_DEFAULT_MODEL_QUALITY = "ambientcg/default_model_quality"
+const SETTING_DEFAULT_HDRI_SIZE = "ambientcg/default_hdri_size"
 
 const DEFAULT_DOWNLOAD_PATH = "res://ambientcg/temp"
 const DEFAULT_EXTRACT_PATH = "res://ambientcg/extracted"
@@ -25,6 +28,21 @@ const PATH_DEFAULTS = {
 	SETTING_DECAL_DIR: DEFAULT_DECAL_DIR,
 	SETTING_MODEL_DIR: DEFAULT_MODEL_DIR,
 	SETTING_ATLAS_DIR: DEFAULT_ATLAS_DIR,
+}
+
+# Defaults for the choices in the import panel. Texture resolutions are set
+# per channel ("ambientcg/default_size_<channel>", see channel_size_setting).
+const IMPORT_DEFAULTS = {
+	SETTING_DEFAULT_FORMAT: "webp_lossless",
+	SETTING_DEFAULT_MODEL_QUALITY: "SQ",
+	SETTING_DEFAULT_HDRI_SIZE: 2048,
+	"ambientcg/default_size_color": 1024,
+	"ambientcg/default_size_normal": 2048,
+	"ambientcg/default_size_roughness": 512,
+	"ambientcg/default_size_metalness": 512,
+	"ambientcg/default_size_ambient_occlusion": 512,
+	"ambientcg/default_size_displacement": 512,
+	"ambientcg/default_size_emission": 512,
 }
 
 # Earlier defaults that projects may still have saved; they are moved to the
@@ -47,7 +65,17 @@ static func get_setting(key: String, default_value: Variant) -> Variant:
 
 
 static func get_default(key: String) -> Variant:
-	return PATH_DEFAULTS.get(key)
+	return PATH_DEFAULTS.get(key, IMPORT_DEFAULTS.get(key))
+
+
+## The saved value of a setting, or its default.
+static func get_value(key: String) -> Variant:
+	return get_setting(key, get_default(key))
+
+
+## The setting holding the default resolution of a texture channel.
+static func channel_size_setting(channel: String) -> String:
+	return "ambientcg/default_size_" + channel.replace("-", "_")
 
 
 static func migrate_legacy_defaults() -> void:

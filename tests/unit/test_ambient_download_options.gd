@@ -30,10 +30,28 @@ func test_sizes_include_downscaled_ones():
 	assert_eq(Options.get_sizes(downloads, "png", "", false), [2048, 4096])
 
 
-func test_default_size_prefers_2k_then_lower_then_higher():
-	assert_eq(Options.pick_default_size([512, 1024, 2048, 4096]), 2048)
-	assert_eq(Options.pick_default_size([256, 512, 1024]), 1024)
-	assert_eq(Options.pick_default_size([4096, 8192]), 4096)
+func test_default_size_prefers_given_size_then_lower_then_higher():
+	assert_eq(Options.pick_default_size([512, 1024, 2048, 4096], 2048), 2048)
+	assert_eq(Options.pick_default_size([256, 512, 1024], 2048), 1024)
+	assert_eq(Options.pick_default_size([4096, 8192], 2048), 4096)
+
+
+func test_largest_channel_size_picks_the_set():
+	var downloads = _downloads(["1K-PNG", "2K-PNG", "4K-PNG"])
+	var sizes = {"color": 1024, "normal": 2048, "roughness": 512}
+	var download = Options.build_download(downloads, "webp_lossless", "", 0, sizes)
+	assert_eq(download["local_file_name"], "Bricks_2K-WEBP-LOSSLESS.zip")
+	var options = download["import_options"]
+	assert_eq(options["source_attributes"], "2K-PNG")
+	assert_eq(options["channel_sizes"], sizes)
+
+
+func test_channels_follow_the_asset_maps():
+	assert_eq(Options.get_channels(["normal", "color", "opacity"]), ["color", "normal"])
+	assert_eq(Options.get_channels([]), Options.COMMON_CHANNELS)
+	assert_eq(Options.channel_of("res://x/Set_1K-PNG_Opacity.png"), "color")
+	assert_eq(Options.channel_of("res://x/Set_1K-PNG_NormalGL.png"), "normal")
+	assert_eq(Options.channel_of("res://x/Set_1K-PNG_AmbientOcclusion.jpg"), "ambient-occlusion")
 
 
 func test_downscaled_choice_uses_next_larger_set():

@@ -48,7 +48,7 @@ Search, download, and automatically import PBR materials and HDRI environments d
 
 1. **Launch**: Click the **AmbientCG** button at the top-center of the Godot editor.
 2. **Search**: Filter assets by keywords (e.g., "stone", "sky").
-3. **Download**: Pick a file format (PNG, JPG, WEBP Lossless or WEBP Lossy), a resolution and, for 3D models, a model quality. WEBP sets are converted from the PNG set, and resolutions ambientCG does not offer (such as 512 and 256) are downscaled from the next larger set while importing. Opacity maps are merged into the color map's alpha.
+3. **Download**: Pick a file format (PNG, JPG, WEBP Lossless or WEBP Lossy), a resolution for each texture channel (color, normal, roughness, ...) and, for 3D models, a model quality. The set that covers the largest chosen resolution is downloaded, and the other channels are downscaled while importing. WEBP sets are converted from the PNG set. Opacity maps are merged into the color map's alpha, and only the OpenGL normal map is kept (the one Godot uses). The preselected choices can be changed under **Import Defaults** in the plugin settings.
 4. **Integration**: Find your new `.tres` resources in the configured `res://ambientcg/` directories.
 
 ## CONFIGURATION
@@ -62,6 +62,10 @@ Adjust paths and behaviors in **Project Settings** under the `ambientcg/` sectio
 | `environment_file_directory` | `res://ambientcg/hdris`        | Where HDRI sky materials are saved.    |
 | `atlas_file_directory`       | `res://ambientcg/atlases`      | Where atlas textures are unpacked.     |
 | `download_path`              | `res://ambientcg/temp`         | Temporary storage for ZIP archives.    |
+| `default_format`             | `webp_lossless`                | File format preselected for imports.   |
+| `default_model_quality`      | `SQ`                           | 3D model quality preselected.          |
+| `default_hdri_size`          | `2048`                         | HDRI resolution preselected.           |
+| `default_size_<channel>`     | normal `2048`, color `1024`, others `512` | Texture resolution preselected per channel. |
 
 ## DEVELOPMENT
 

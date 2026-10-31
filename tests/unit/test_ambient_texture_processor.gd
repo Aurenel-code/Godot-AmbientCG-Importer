@@ -84,7 +84,7 @@ func test_flat_normals_stay_flat_and_keep_roughness():
 	assert_almost_eq(lengths[0], 1.0, 0.01)
 
 	var rough = _solid(4, Image.FORMAT_L8, Color(0.5, 0.5, 0.5))
-	Processor.add_normal_variance(rough, lengths)
+	Processor.add_normal_variance(rough, _lengths_image(lengths, 4))
 	assert_almost_eq(rough.get_pixel(0, 0).r, 0.5, 0.01)
 
 
@@ -98,9 +98,40 @@ func test_lost_normal_detail_raises_roughness():
 	assert_lt(lengths[0], 0.95)
 	assert_almost_eq(img.get_pixel(0, 0).b, 1.0, 0.01, "The averaged normal is renormalized")
 
-	var rough = _solid(1, Image.FORMAT_L8, Color(0.3, 0.3, 0.3))
-	Processor.add_normal_variance(rough, lengths)
-	assert_gt(rough.get_pixel(0, 0).r, 0.35)
+	var rough = _solid(2, Image.FORMAT_L8, Color(0.3, 0.3, 0.3))
+	Processor.add_normal_variance(rough, _lengths_image(lengths, 1))
+	assert_gt(rough.get_pixel(1, 1).r, 0.35, "Resampled to the roughness size")
+
+
+func _lengths_image(lengths: PackedFloat32Array, size: int) -> Image:
+	return Image.create_from_data(size, size, false, Image.FORMAT_RF, lengths.to_byte_array())
+
+
+func test_each_channel_gets_its_own_size():
+	var files: PackedStringArray = [
+		_save("Set_2K-PNG_Color.png", _solid(16, Image.FORMAT_RGB8, Color.BLUE)),
+		_save("Set_2K-PNG_NormalGL.png", _solid(16, Image.FORMAT_RGB8, Color(0.5, 0.5, 1.0))),
+		_save("Set_2K-PNG_Roughness.png", _solid(16, Image.FORMAT_L8, Color(0.5, 0.5, 0.5))),
+	]
+	var options = {"channel_sizes": {"color": 8, "normal": 16, "roughness": 4}}
+	var result = Processor.process_set(files, options)
+	var sizes = {}
+	for path in result:
+		sizes[path.get_file()] = Image.load_from_file(path).get_width()
+	assert_eq(
+		sizes,
+		{"Set_2K-PNG_NormalGL.png": 16, "Set_2K-PNG_Color.png": 8, "Set_2K-PNG_Roughness.png": 4}
+	)
+
+
+func test_dx_normal_map_is_dropped():
+	var files: PackedStringArray = [
+		_save("Set_1K-PNG_NormalGL.png", _solid(4, Image.FORMAT_RGB8, Color(0.5, 0.5, 1.0))),
+		_save("Set_1K-PNG_NormalDX.png", _solid(4, Image.FORMAT_RGB8, Color(0.5, 0.5, 1.0))),
+	]
+	var result = Processor.process_set(files, {})
+	assert_eq(result, PackedStringArray([files[0]]))
+	assert_false(FileAccess.file_exists(files[1]))
 
 
 func test_fit_size_never_upscales():
