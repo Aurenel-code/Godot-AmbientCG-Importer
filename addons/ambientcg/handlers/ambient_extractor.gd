@@ -1,6 +1,10 @@
 @tool
 extends Node
 
+# Only plain image data is extracted. Anything else in an archive (scripts,
+# scenes, resources) could execute code when the editor loads it.
+const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "exr", "hdr"]
+
 var config: Script
 var utils: Script
 var logger: Node
@@ -58,14 +62,19 @@ func _extract_zip_contents(
 	var saved_files: PackedStringArray
 	for file in files:
 		var ext = file.get_extension().to_lower()
-		if ext in ["blend", "mtlx", "usdc", "usdz"]:
+		if not ext in ALLOWED_EXTENSIONS:
 			continue
 
 		if ext in ["jpg", "jpeg", "png"] and not res_regex.search(file):
 			continue
 
+		var file_name = file.get_file()
+		if not utils.is_safe_file_name(file_name):
+			_log_warn("Skipping archive entry with unsafe name: %s" % file)
+			continue
+
 		var file_data: PackedByteArray = reader.read_file(file)
-		var new_file_path = target_dir.path_join(file.get_file())
+		var new_file_path = target_dir.path_join(file_name)
 
 		var fs := FileAccess.open(new_file_path, FileAccess.WRITE)
 		if fs:
@@ -87,7 +96,7 @@ func _extract_zip_contents(
 func _finalize_extraction(
 	asset_name: String,
 	saved_files: PackedStringArray,
-	final_extract_path: String,
+	_final_extract_path: String,
 	options: Dictionary,
 	file_sys: Variant
 ) -> void:
@@ -99,47 +108,24 @@ func _finalize_extraction(
 		config.SETTING_ENVIRONMENT_DIR, config.DEFAULT_ENVIRONMENT_DIR
 	)
 	var save_dir := env_dir if is_hdri else mat_dir
-	var mat_save_path: String = save_dir.path_join(asset_name + ".tres")
+	var mat_save_path: String = save_dir.path_join(
+		utils.sanitize_file_component(asset_name) + ".tres"
+	)
 
-	var extracted_tres_path: String = ""
-	for f in saved_files:
-		if f.get_extension().to_lower() == "tres":
-			extracted_tres_path = f
-			break
-
-	if not extracted_tres_path.is_empty():
-		var tres_content = FileAccess.get_file_as_string(extracted_tres_path)
-		var fixed_content = _fix_tres_texture_paths(tres_content, final_extract_path)
-		var out_file = FileAccess.open(mat_save_path, FileAccess.WRITE)
-		if out_file:
-			out_file.store_string(fixed_content)
-			out_file.close()
-		DirAccess.remove_absolute(extracted_tres_path)
+	# Resources are always generated locally; .tres files shipped inside an
+	# archive are never copied into the project.
+	var res: Resource
+	if is_hdri:
+		res = environment_maker.make_environment_resource(saved_files)
+	elif options.get("enable_packing", false):
+		res = material_maker.make_orm_material(saved_files, options)
 	else:
-		var res: Resource
-		if is_hdri:
-			res = environment_maker.make_environment_resource(saved_files)
-		elif options.get("enable_packing", false):
-			res = material_maker.make_orm_material(saved_files, options)
-		else:
-			res = material_maker.make_standard_material(saved_files, options)
+		res = material_maker.make_standard_material(saved_files, options)
 
-		ResourceSaver.save(res, mat_save_path)
+	ResourceSaver.save(res, mat_save_path)
 
 	if file_sys:
 		file_sys.update_file(mat_save_path)
-
-
-func _fix_tres_texture_paths(content: String, extract_folder: String) -> String:
-	var path_regex = RegEx.new()
-	path_regex.compile('path="([^"]+)"')
-	var result = content
-	for match in path_regex.search_all(content):
-		var original_path = match.get_string(1)
-		if not original_path.begins_with("res://"):
-			var absolute_path = extract_folder.path_join(original_path)
-			result = result.replace('path="%s"' % original_path, 'path="%s"' % absolute_path)
-	return result
 
 
 func _process_image_scaling(path: String, options: Dictionary) -> void:

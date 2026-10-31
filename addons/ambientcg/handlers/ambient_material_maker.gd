@@ -17,7 +17,11 @@ static func make_standard_material(
 		if not tex:
 			continue
 
-		var f_lower = file.to_lower()
+		var f_lower = file.get_file().to_lower()
+		# Godot expects OpenGL-style normal maps; ambientCG ships both.
+		if f_lower.contains("normaldx"):
+			continue
+
 		if f_lower.contains("color"):
 			material.albedo_texture = tex
 		if f_lower.contains("normal"):
@@ -27,6 +31,9 @@ static func make_standard_material(
 			material.metallic_texture = tex
 		if f_lower.contains("rough"):
 			material.roughness_texture = tex
+		if f_lower.contains("ambientocclusion"):
+			material.ao_enabled = true
+			material.ao_texture = tex
 		if f_lower.contains("displacement") or f_lower.contains("height"):
 			material.heightmap_enabled = not options.get("use_triplanar_uv", false)
 			material.heightmap_texture = tex

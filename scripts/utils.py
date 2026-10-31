@@ -5,6 +5,9 @@ import tarfile
 import os
 import shutil
 
+# Pinned GUT release used for unit tests. Bump deliberately.
+GUT_VERSION = "v9.7.1"
+
 def get_godot_command():
     # Try environment variable first
     env_godot = os.environ.get("GODOT")
@@ -58,29 +61,26 @@ def get_latest_godot_version():
 def ensure_gut():
     if os.path.exists("addons/gut"):
         return False
-    print("=== Downloading Latest GUT ===")
-    
-    token = os.environ.get("GITHUB_TOKEN")
-    url = "https://api.github.com/repos/bitwes/Gut/releases/latest"
-    req = urllib.request.Request(url)
-    if token:
-        req.add_header("Authorization", f"token {token}")
-    
+    print(f"=== Downloading GUT {GUT_VERSION} ===")
+
+    tarball_url = f"https://api.github.com/repos/bitwes/Gut/tarball/{GUT_VERSION}"
     try:
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode())
-            tarball_url = data["tarball_url"]
+        file_path, _ = urllib.request.urlretrieve(tarball_url)
     except Exception as e:
-        print(f"Error: Failed to fetch latest GUT release ({e}).")
+        print(f"Error: Failed to download GUT {GUT_VERSION} ({e}).")
         return False
 
-    file_path, _ = urllib.request.urlretrieve(tarball_url)
     with tarfile.open(file_path, "r:gz") as tar:
         for member in tar.getmembers():
-            if "addons/gut/" in member.name:
-                parts = member.name.split("/")
-                member.name = "/".join(parts[1:])
-                tar.extract(member, path=".")
+            parts = member.name.split("/")
+            if len(parts) < 3 or parts[1:3] != ["addons", "gut"]:
+                continue
+            if not (member.isfile() or member.isdir()):
+                continue
+            member.name = "/".join(parts[1:])
+            if os.path.isabs(member.name) or ".." in member.name.split("/"):
+                continue
+            tar.extract(member, path=".")
     os.remove(file_path)
     return True
 

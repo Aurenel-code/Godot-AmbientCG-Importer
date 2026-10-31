@@ -47,16 +47,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Get Latest Godot Version
-        id: godot-version
-        run: python scripts/get_godot_version.py
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set up Godot
         uses: chickensoft-games/setup-godot@v2
         with:
-          version: ${{ steps.godot-version.outputs.version }}
+          # Pinned so CI only changes when the version is bumped deliberately.
+          version: 4.7.2
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5

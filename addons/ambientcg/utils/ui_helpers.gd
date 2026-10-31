@@ -1,9 +1,16 @@
 @tool
 extends Node
 
+const UTILS = preload("res://addons/ambientcg/utils/ambient_utils.gd")
+const MAX_THUMBNAIL_BYTES := 8 * 1024 * 1024
+
 
 func load_image_from_url(parent: Node, url: String) -> ImageTexture:
+	if not UTILS.is_trusted_url(url):
+		return null
+
 	var http = HTTPRequest.new()
+	http.body_size_limit = MAX_THUMBNAIL_BYTES
 	parent.add_child(http)
 	http.request(url)
 	var response = await http.request_completed

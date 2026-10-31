@@ -31,7 +31,8 @@ static func parse_assets(json: Dictionary) -> Dictionary:
 		asset["title"] = asset_json.get("title", "")
 
 		var thumbnails = asset_json.get("thumbnails", {})
-		asset["thumbnail"] = thumbnails.get("128-PNG", thumbnails.get("128-WEBP", ""))
+		var thumbnail = thumbnails.get("128-PNG", thumbnails.get("128-WEBP", ""))
+		asset["thumbnail"] = thumbnail if UTILS.is_trusted_url(str(thumbnail)) else ""
 
 		var asset_id = asset["id"].to_lower()
 		if asset_id.contains("hdri"):
@@ -49,11 +50,11 @@ static func parse_assets(json: Dictionary) -> Dictionary:
 				"extension": download_json.get("extension", ""),
 				"local_file_name":
 				(
-					asset["id"]
+					UTILS.sanitize_file_component(str(asset["id"]))
 					+ "_"
-					+ download_json.get("attributes", "")
+					+ UTILS.sanitize_file_component(str(download_json.get("attributes", "")))
 					+ "."
-					+ download_json.get("extension", "")
+					+ UTILS.sanitize_file_component(str(download_json.get("extension", "")))
 				)
 			}
 			downloads.append(download)

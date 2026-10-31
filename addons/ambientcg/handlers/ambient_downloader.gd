@@ -12,8 +12,17 @@ func download_file_from_data(file_information: Dictionary, _source_window: Node)
 	var download_path: String = config.get_setting(
 		config.SETTING_DOWNLOAD_PATH, config.DEFAULT_DOWNLOAD_PATH
 	)
-	var path: String = download_path.path_join(file_information.get("local_file_name", ""))
-	var file_uri = file_information.get("uri", "")
+	var file_name: String = file_information.get("local_file_name", "")
+	var file_uri: String = file_information.get("uri", "")
+
+	if not utils.is_safe_file_name(file_name):
+		_log_error("Refusing download with unsafe file name: '%s'" % file_name)
+		return
+	if not utils.is_trusted_url(file_uri):
+		_log_error("Refusing download from untrusted URL: '%s'" % file_uri)
+		return
+
+	var path: String = download_path.path_join(file_name)
 
 	_log_info("Initiating download to Project: %s" % file_uri)
 
@@ -68,3 +77,8 @@ func confirm_file_path(_path: String, dialog_text: String) -> bool:
 func _log_info(message: String) -> void:
 	if logger:
 		logger.info(message, "Downloader")
+
+
+func _log_error(message: String) -> void:
+	if logger:
+		logger.error(message, "Downloader")
