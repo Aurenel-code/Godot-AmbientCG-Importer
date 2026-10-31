@@ -5,12 +5,14 @@ const BROWSER_WIDGET = preload(
 	"res://addons/ambientcg/ui/components/browser_widget/browser_widget.tscn"
 )
 const CONFIG = preload("res://addons/ambientcg/core/ambient_config.gd")
-# Display name -> value accepted by the ambientCG API's "sort" parameter.
+# Display name -> value of the ambientCG API's "sort" parameter (or the
+# plugin's own reversed download order).
 const SORT_OPTIONS = {
 	"Popular": "popular",
 	"Latest": "latest",
-	"Alphabetical": "alphabet",
+	"Oldest": "oldest",
 	"Most Downloaded": "downloads",
+	"Least Downloaded": "least_downloads",
 }
 
 var type_text: String = "Any"

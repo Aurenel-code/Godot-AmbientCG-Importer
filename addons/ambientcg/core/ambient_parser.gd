@@ -49,6 +49,7 @@ static func parse_assets(json: Dictionary) -> Dictionary:
 			if str(download_json.get("attributes", "")).contains("ANIMATED"):
 				continue
 			var download = {
+				"asset_id": UTILS.sanitize_file_component(str(asset["id"])),
 				"asset_type": asset["asset_type"],
 				"has_transparency": asset["has_transparency"],
 				"attributes": str(download_json.get("attributes", "")),
@@ -68,7 +69,6 @@ static func parse_assets(json: Dictionary) -> Dictionary:
 			downloads.append(download)
 			implementation_uris[download_json.get("attributes", "")] = download["uri"]
 
-		_link_png_alternatives(downloads)
 		asset["download_data"] = downloads
 		asset["implementation_uris"] = implementation_uris
 		assets.append(asset)
@@ -91,21 +91,6 @@ static func _has_transparency(asset_json: Dictionary, asset_type: String) -> boo
 		return true
 	var maps = asset_json.get("maps", [])
 	return maps is Array and "opacity" in maps
-
-
-# Gives every JPG download the matching PNG download ("1K-JPG" -> "1K-PNG"),
-# so the user can switch when a JPG cannot hold transparency.
-static func _link_png_alternatives(downloads: Array) -> void:
-	var by_attributes := {}
-	for download in downloads:
-		by_attributes[download["attributes"] + "." + str(download["extension"])] = download
-	for download in downloads:
-		var attributes: String = download["attributes"]
-		if not attributes.contains("JPG"):
-			continue
-		var key: String = attributes.replace("JPG", "PNG") + "." + str(download["extension"])
-		if by_attributes.has(key):
-			download["png_alternative"] = by_attributes[key].duplicate()
 
 
 static func pull_tres_dependencies(zip_reader: ZIPReader, tres_file: String) -> Dictionary:

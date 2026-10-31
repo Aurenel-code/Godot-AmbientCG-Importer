@@ -33,12 +33,12 @@ func _ready() -> void:
 
 
 func _on_download_started(
-	url: String, asset_name: String, asset_type: String, file_size: int
+	url: String, asset_name: String, asset_type: String, file_size: int, import_options: Dictionary
 ) -> void:
 	var item = DOWNLOAD_ITEM_SCENE.instantiate()
 	item.finished.connect(_on_item_finished.bind(item))
 	download_list.add_child(item)
-	item.setup(url, asset_name, asset_type, file_size)
+	item.setup(url, asset_name, asset_type, file_size, import_options)
 
 
 func _on_item_finished(record: Dictionary, item: Node) -> void:

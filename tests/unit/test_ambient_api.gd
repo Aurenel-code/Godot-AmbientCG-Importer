@@ -81,3 +81,18 @@ func test_download_limit_fits_http_request():
 	assert_gt(http.body_size_limit, 0, "Huge sizes must not wrap either")
 	http.free()
 	assert_eq(_api._get_download_limit(10 * 1024 * 1024), 11 * 1024 * 1024)
+
+
+func test_least_downloaded_reads_the_download_order_backwards():
+	var page = {"totalResults": 150, "assets": [{"id": "A"}, {"id": "B"}]}
+	stub(_api, "http_request").to_return([0, 200, {}, JSON.stringify(page).to_utf8_buffer()])
+
+	var result = await _api.search_assets("", "Any", "", "", "least_downloads")
+	var url: String = get_call_parameters(_api, "http_request")[0]
+	assert_string_contains(url, "&sort=downloads&limit=100&offset=50")
+	assert_eq(result["assets"].map(func(a): return a["id"]), ["B", "A"])
+	assert_true(result["nextPageHttp"].begins_with("reversed:50:"))
+
+	await _api.search_assets("", "Any", result["nextPageHttp"])
+	url = get_call_parameters(_api, "http_request")[0]
+	assert_string_contains(url, "&limit=50&offset=0")

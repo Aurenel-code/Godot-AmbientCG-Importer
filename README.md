@@ -48,7 +48,7 @@ Search, download, and automatically import PBR materials and HDRI environments d
 
 1. **Launch**: Click the **AmbientCG** button at the top-center of the Godot editor.
 2. **Search**: Filter assets by keywords (e.g., "stone", "sky").
-3. **Download**: Select a resolution and format. The plugin handles ZIP extraction and cleanup automatically.
+3. **Download**: Pick a file format (PNG, JPG, WEBP Lossless or WEBP Lossy), a resolution and, for 3D models, a model quality. WEBP sets are converted from the PNG set, and resolutions ambientCG does not offer (such as 512 and 256) are downscaled from the next larger set while importing. Opacity maps are merged into the color map's alpha.
 4. **Integration**: Find your new `.tres` resources in the configured `res://ambientcg/` directories.
 
 ## CONFIGURATION

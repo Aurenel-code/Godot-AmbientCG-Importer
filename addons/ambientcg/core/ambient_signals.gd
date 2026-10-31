@@ -7,7 +7,9 @@ signal search_completed(results: Dictionary)
 
 # Download Lifecycle
 signal download_requested(asset_id: String, quality: String)
-signal download_started(url: String, file_name: String, asset_type: String, file_size: int)
+signal download_started(
+	url: String, file_name: String, asset_type: String, file_size: int, import_options: Dictionary
+)
 signal download_progress_updated(url: String, bytes_received: int, total_bytes: int)
 signal download_completed(file_path: String)
 signal download_failed(url: String, reason: String)

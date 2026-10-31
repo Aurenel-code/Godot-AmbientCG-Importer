@@ -9,6 +9,12 @@ const MAX_DOWNLOAD_BYTES := 2147483647
 const DOWNLOAD_SIZE_TOLERANCE_BYTES := 1024 * 1024
 const MAX_REDIRECTS := 5
 const REDIRECT_CODES = [301, 302, 303, 307, 308]
+const PAGE_SIZE := 100
+# The API can only sort by downloads in descending order, so this sort walks
+# that order backwards: pages are fetched from the end and reversed. Its
+# "next page" links carry the offset where the next page ends.
+const SORT_LEAST_DOWNLOADS := "least_downloads"
+const REVERSED_PAGE_PREFIX := "reversed:"
 
 var config: Script
 var parser: Script
@@ -185,26 +191,61 @@ func search_assets(
 	exact_id: String = "",
 	sort: String = ""
 ) -> Dictionary:
+	if override_uri.begins_with(REVERSED_PAGE_PREFIX):
+		var page := override_uri.trim_prefix(REVERSED_PAGE_PREFIX)
+		return await _search_reversed(
+			page.get_slice(":", 0).to_int(), page.substr(page.find(":") + 1)
+		)
+
 	var final_uri = ""
 	if not override_uri.is_empty():
 		final_uri = (
 			override_uri if override_uri.begins_with("http") else config.BASE_DOMAIN + override_uri
 		)
 	else:
-		final_uri = config.HOME_URL + "assets?limit=100&include=downloads,thumbnails,type,maps"
+		final_uri = config.HOME_URL + "assets?include=downloads,thumbnails,type,maps"
 		if not exact_id.is_empty():
 			final_uri += "&id=" + exact_id.uri_encode()
 		if not query.is_empty():
 			final_uri += "&q=" + query.uri_encode()
 		if not type.is_empty() and type != "Any":
 			final_uri += "&type=" + type.to_lower().uri_encode()
+		if sort == SORT_LEAST_DOWNLOADS:
+			return await _search_reversed(-1, final_uri + "&sort=downloads")
 		if not sort.is_empty():
 			final_uri += "&sort=" + sort.uri_encode()
+		final_uri += "&limit=%d" % PAGE_SIZE
 
-	if not final_uri.is_empty():
-		var response = await http_request(
-			final_uri, PackedStringArray(), HTTPClient.METHOD_GET, "", true
-		)
+	return await _get_json(final_uri)
+
+
+# Fetches the page of base_uri's results that ends at offset `end` (-1 for
+# the last page) in reverse order.
+func _search_reversed(end: int, base_uri: String) -> Dictionary:
+	if end < 0:
+		var probe := await _get_json(base_uri + "&limit=1")
+		if probe.is_empty():
+			return {}
+		end = int(probe.get("totalResults", 0))
+
+	var offset := maxi(end - PAGE_SIZE, 0)
+	var result := {"totalResults": 0, "assets": []}
+	if end > 0:
+		result = await _get_json(base_uri + "&limit=%d&offset=%d" % [end - offset, offset])
+		if result.is_empty():
+			return {}
+	var assets: Array = result.get("assets", [])
+	assets.reverse()
+	result["assets"] = assets
+	result["nextPageHttp"] = (
+		"%s%d:%s" % [REVERSED_PAGE_PREFIX, offset, base_uri] if offset > 0 else ""
+	)
+	return result
+
+
+func _get_json(uri: String) -> Dictionary:
+	if not uri.is_empty():
+		var response = await http_request(uri, PackedStringArray(), HTTPClient.METHOD_GET, "", true)
 		if response[0] != HTTPRequest.RESULT_SUCCESS:
 			return {}
 

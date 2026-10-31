@@ -1,8 +1,9 @@
 @tool
 # AmbientMaterialMaker
 # Writes StandardMaterial3D resources for ambientCG texture sets.
-# Godot reads transparency from the albedo alpha, so sets with a separate
-# opacity map get it baked into a PNG copy of the color map.
+# Godot reads transparency from the albedo alpha. The extractor merges
+# opacity maps into the color map; sets that still have a separate opacity
+# map get it baked into a PNG copy of the color map here.
 
 const Writer = preload("res://addons/ambientcg/handlers/ambient_resource_writer.gd")
 
@@ -18,7 +19,7 @@ const TEXTURE_ROLES = {
 	"opacity": "opacity",
 	"emission": "emission",
 }
-const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png"]
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"]
 
 
 ## Maps texture roles ("albedo", "normal", ...) to the matching file paths.
@@ -44,7 +45,8 @@ static func build_material_properties(
 	var props := {}
 	if triplanar:
 		props["uv1_triplanar"] = true
-	if maps.has("opacity"):
+	# has_transparency covers sets whose opacity was merged into the color map.
+	if maps.has("opacity") or options.get("has_transparency", false):
 		props["transparency"] = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
 		props["cull_mode"] = BaseMaterial3D.CULL_DISABLED
 	if maps.has("albedo"):
@@ -108,18 +110,25 @@ static func bake_albedo_with_opacity(
 	if not opacity or opacity.is_empty():
 		return ERR_CANT_OPEN
 
-	var color := albedo.duplicate() as Image
-	color.convert(Image.FORMAT_RGBA8)
-	opacity.convert(Image.FORMAT_L8)
-	if opacity.get_size() != color.get_size():
-		opacity.resize(color.get_width(), color.get_height())
+	return merge_opacity(albedo, opacity).save_png(out_path)
 
-	var rgba := color.get_data()
-	var alpha := opacity.get_data()
+
+## Returns an RGBA copy of color with the opacity image as its alpha.
+static func merge_opacity(color: Image, opacity: Image) -> Image:
+	var rgba_image := color.duplicate() as Image
+	rgba_image.convert(Image.FORMAT_RGBA8)
+	var alpha_image := opacity.duplicate() as Image
+	alpha_image.convert(Image.FORMAT_L8)
+	if alpha_image.get_size() != rgba_image.get_size():
+		alpha_image.resize(
+			rgba_image.get_width(), rgba_image.get_height(), Image.INTERPOLATE_LANCZOS
+		)
+
+	var rgba := rgba_image.get_data()
+	var alpha := alpha_image.get_data()
 	for i in alpha.size():
 		rgba[i * 4 + 3] = alpha[i]
 
-	var out := Image.create_from_data(
-		color.get_width(), color.get_height(), false, Image.FORMAT_RGBA8, rgba
+	return Image.create_from_data(
+		rgba_image.get_width(), rgba_image.get_height(), false, Image.FORMAT_RGBA8, rgba
 	)
-	return out.save_png(out_path)

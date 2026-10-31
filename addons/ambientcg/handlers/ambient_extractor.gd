@@ -6,6 +6,7 @@ extends Node
 # code when the editor loads it.
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "exr", "hdr"]
 const MODEL_EXTENSIONS = ["obj", "mtl"]
+const TextureProcessor = preload("res://addons/ambientcg/handlers/ambient_texture_processor.gd")
 
 var config: Script
 var utils: Script
@@ -56,8 +57,12 @@ func extract_all(
 	if DirAccess.dir_exists_absolute(final_extract_path):
 		utils.clean_dir_content(final_extract_path)
 
-	var saved_files = _extract_zip_contents(reader, files, final_extract_path, asset_type, options)
+	var saved_files = _extract_zip_contents(reader, files, final_extract_path, asset_type)
 	reader.close()
+	# HDRIs are used as they are; texture sets get their alpha merged and are
+	# downscaled or converted as chosen in the import panel.
+	if asset_type != "hdri":
+		saved_files = TextureProcessor.process_set(saved_files, options)
 
 	# Resources are written straight away from the extracted file names, so
 	# they never depend on the editor having imported the textures first.
@@ -93,11 +98,7 @@ func _get_asset_type(asset_name: String, options: Dictionary) -> String:
 
 
 func _extract_zip_contents(
-	reader: ZIPReader,
-	files: PackedStringArray,
-	target_dir: String,
-	asset_type: String,
-	options: Dictionary
+	reader: ZIPReader, files: PackedStringArray, target_dir: String, asset_type: String
 ) -> PackedStringArray:
 	utils.ensure_dir(target_dir)
 
@@ -131,9 +132,6 @@ func _extract_zip_contents(
 			fs.store_buffer(file_data)
 			fs.close()
 			saved_files.append(new_file_path)
-
-			if ext in ["jpg", "jpeg", "png"] and options.get("use_custom_size", false):
-				_process_image_scaling(new_file_path, options)
 
 	return saved_files
 
@@ -236,23 +234,6 @@ func _process(delta: float) -> void:
 			_log_warn("Editor did not pick up %s; it will appear after a rescan" % path)
 	if needs_scan:
 		file_sys.scan()
-
-
-func _process_image_scaling(path: String, options: Dictionary) -> void:
-	var img = Image.load_from_file(path)
-	if not img or img.is_empty():
-		return
-
-	var current_size = img.get_size()
-	var target_size = options.get("img_size", current_size)
-
-	if target_size != current_size:
-		img.resize(target_size.x, target_size.y, Image.INTERPOLATE_BILINEAR)
-		var ext = path.get_extension().to_lower()
-		if ext in ["jpg", "jpeg"]:
-			img.save_jpg(path)
-		elif ext == "png":
-			img.save_png(path)
 
 
 func _get_extraction_path(target_path: String) -> String:

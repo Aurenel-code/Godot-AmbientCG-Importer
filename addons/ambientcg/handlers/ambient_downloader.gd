@@ -1,8 +1,6 @@
 @tool
 extends Node
 
-enum JpgChoice { CONTINUE, PNG, CANCEL }
-
 var config: Script
 var logger: Node
 var signals: Node
@@ -11,18 +9,6 @@ var utils: Script
 
 
 func download_file_from_data(file_information: Dictionary, _source_window: Node) -> void:
-	# JPG color maps have no alpha channel, so warn before downloading a
-	# JPG set of a transparent asset and offer the PNG set instead.
-	var warned := false
-	if needs_jpg_warning(file_information):
-		match await ask_jpg_transparency(file_information):
-			JpgChoice.PNG:
-				file_information = file_information["png_alternative"]
-			JpgChoice.CANCEL:
-				_log_info("Download cancelled by user.")
-				return
-		warned = true
-
 	var download_path: String = config.get_setting(
 		config.SETTING_DOWNLOAD_PATH, config.DEFAULT_DOWNLOAD_PATH
 	)
@@ -46,7 +32,7 @@ func download_file_from_data(file_information: Dictionary, _source_window: Node)
 	)
 
 	var confirmed = true
-	if not warned and config.get_setting(config.SETTING_ASK_BEFORE_DOWNLOAD, true):
+	if config.get_setting(config.SETTING_ASK_BEFORE_DOWNLOAD, true):
 		confirmed = await confirm_file_path(path, text)
 
 	if not confirmed:
@@ -58,61 +44,11 @@ func download_file_from_data(file_information: Dictionary, _source_window: Node)
 			file_uri,
 			file_name,
 			str(file_information.get("asset_type", "")),
-			int(file_information.get("file_size", 0))
+			int(file_information.get("file_size", 0)),
+			file_information.get("import_options", {})
 		)
 	if api:
 		await api.http_request_download(file_uri, path, file_information.get("file_size", 0))
-
-
-static func needs_jpg_warning(file_information: Dictionary) -> bool:
-	return (
-		file_information.get("has_transparency", false)
-		and str(file_information.get("attributes", "")).contains("JPG")
-	)
-
-
-func ask_jpg_transparency(file_information: Dictionary) -> JpgChoice:
-	if not Engine.is_editor_hint():
-		return JpgChoice.CONTINUE
-
-	var png: Dictionary = file_information.get("png_alternative", {})
-	var jpg_size: String = utils.format_file_size(file_information.get("file_size", 0))
-	var text := "This asset has transparency, but JPG does not support transparency.\n\n"
-	text += "Continue with JPG (%s)" % jpg_size
-	if not png.is_empty():
-		text += ", download PNG instead (%s)" % utils.format_file_size(png.get("file_size", 0))
-	text += " or cancel?"
-
-	var dialog := ConfirmationDialog.new()
-	add_child(dialog)
-	dialog.exclusive = false
-	dialog.title = "JPG Has No Transparency"
-	dialog.dialog_text = text
-	dialog.ok_button_text = "Continue with JPG"
-	if not png.is_empty():
-		dialog.add_button("Download PNG", false, "png")
-
-	var state = [false, JpgChoice.CANCEL]  # [finished, choice]
-	dialog.confirmed.connect(
-		func():
-			state[0] = true
-			state[1] = JpgChoice.CONTINUE
-	)
-	# Extra buttons do not close the dialog on their own.
-	dialog.custom_action.connect(
-		func(_action):
-			state[0] = true
-			state[1] = JpgChoice.PNG
-			dialog.hide()
-	)
-	dialog.canceled.connect(func(): state[0] = true)
-
-	dialog.popup_centered()
-	while not state[0]:
-		await get_tree().process_frame
-
-	dialog.queue_free()
-	return state[1]
 
 
 func confirm_file_path(_path: String, dialog_text: String) -> bool:

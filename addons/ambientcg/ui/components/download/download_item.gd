@@ -21,6 +21,8 @@ var asset_name: String = ""
 var asset_type: String = ""
 var file_size: int = 0
 var local_path: String = ""
+# Import steps for the extractor (downscaling, WEBP conversion).
+var import_options: Dictionary = {}
 var _is_extracting: bool = false
 var _is_done: bool = false
 # Set for past downloads, which only display their record.
@@ -44,11 +46,18 @@ func _ready() -> void:
 		_apply_record()
 
 
-func setup(p_url: String, p_name: String, p_asset_type: String = "", p_file_size: int = 0):
+func setup(
+	p_url: String,
+	p_name: String,
+	p_asset_type: String = "",
+	p_file_size: int = 0,
+	p_import_options: Dictionary = {}
+):
 	url = p_url
 	asset_name = p_name
 	asset_type = p_asset_type
 	file_size = p_file_size
+	import_options = p_import_options
 	local_path = _build_download_path(p_name)
 	if is_inside_tree():
 		title_label.text = asset_name
@@ -115,9 +124,9 @@ func _start_extraction() -> void:
 		var extract_path = CONFIG.get_setting(
 			CONFIG.SETTING_EXTRACT_PATH, CONFIG.DEFAULT_EXTRACT_PATH
 		)
-		created = await ambient_cg.file_handler.extract_all(
-			local_path, extract_path, {"asset_type": asset_type}
-		)
+		var options := import_options.duplicate()
+		options["asset_type"] = asset_type
+		created = await ambient_cg.file_handler.extract_all(local_path, extract_path, options)
 
 	if created.is_empty():
 		_finish("failed", "Import failed", "")
