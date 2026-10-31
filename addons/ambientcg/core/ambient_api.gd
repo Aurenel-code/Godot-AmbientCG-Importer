@@ -177,7 +177,11 @@ func _get_header(headers: PackedStringArray, header_name: String) -> String:
 
 
 func search_assets(
-	query: String, type: String = "", override_uri: String = "", exact_id: String = ""
+	query: String,
+	type: String = "",
+	override_uri: String = "",
+	exact_id: String = "",
+	sort: String = ""
 ) -> Dictionary:
 	var final_uri = ""
 	if not override_uri.is_empty():
@@ -185,13 +189,15 @@ func search_assets(
 			override_uri if override_uri.begins_with("http") else config.BASE_DOMAIN + override_uri
 		)
 	else:
-		final_uri = config.HOME_URL + "assets?limit=100&include=downloads,thumbnails"
+		final_uri = config.HOME_URL + "assets?limit=100&include=downloads,thumbnails,type"
 		if not exact_id.is_empty():
 			final_uri += "&id=" + exact_id.uri_encode()
 		if not query.is_empty():
 			final_uri += "&q=" + query.uri_encode()
 		if not type.is_empty() and type != "Any":
 			final_uri += "&type=" + type.to_lower().uri_encode()
+		if not sort.is_empty():
+			final_uri += "&sort=" + sort.uri_encode()
 
 	if not final_uri.is_empty():
 		var response = await http_request(
@@ -207,7 +213,16 @@ func search_assets(
 
 
 func api_init() -> Dictionary:
-	var types = ["Material", "HDRI", "Substance", "Decal", "Atlas", "3DModel", "Terrain"]
+	# "value" is the API's type name. Substance assets are left out because
+	# Godot cannot use .sbsar files.
+	var types = [
+		{"label": "Material", "value": "material"},
+		{"label": "HDRI", "value": "hdri"},
+		{"label": "Decal", "value": "decal"},
+		{"label": "Atlas", "value": "atlas"},
+		{"label": "3D Model", "value": "3d-model"},
+		{"label": "Terrain", "value": "terrain"},
+	]
 	var data = {"types": types}
 	if manager:
 		manager.api_information = data

@@ -47,3 +47,26 @@ func test_search_assets_mocked():
 	assert_typeof(result, TYPE_DICTIONARY)
 	# result should be {"assets": []} parsed from our mock string
 	assert_eq(result.get("assets"), [])
+
+
+func test_search_assets_sends_sort():
+	stub(_api, "http_request").to_return([0, 200, {}, "{}".to_utf8_buffer()])
+
+	await _api.search_assets("wood", "Any", "", "", "latest")
+	var url: String = get_call_parameters(_api, "http_request")[0]
+	assert_string_contains(url, "&sort=latest")
+	assert_false(url.contains("&type="), "'Any' type should not be sent")
+
+
+func test_api_init_types():
+	var values = _api.api_init().get("types").map(func(t): return t["value"])
+	assert_false(values.has("substance"), "Substance should not be offered")
+	assert_true(values.has("3d-model"), "API name for 3D models is '3d-model'")
+
+
+func test_search_assets_omits_empty_sort():
+	stub(_api, "http_request").to_return([0, 200, {}, "{}".to_utf8_buffer()])
+
+	await _api.search_assets("wood")
+	var url: String = get_call_parameters(_api, "http_request")[0]
+	assert_false(url.contains("sort="))

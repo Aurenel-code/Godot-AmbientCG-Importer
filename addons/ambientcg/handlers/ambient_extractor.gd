@@ -1,9 +1,11 @@
 @tool
 extends Node
 
-# Only plain image data is extracted. Anything else in an archive (scripts,
-# scenes, resources) could execute code when the editor loads it.
-const ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "exr", "hdr"]
+# Only plain image data is extracted (plus OBJ meshes for 3D models).
+# Anything else in an archive (scripts, scenes, resources) could execute
+# code when the editor loads it.
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "exr", "hdr"]
+const MODEL_EXTENSIONS = ["obj", "mtl"]
 
 var config: Script
 var utils: Script
@@ -11,6 +13,8 @@ var logger: Node
 var signals: Node
 var material_maker: Script
 var environment_maker: Script
+var decal_maker: Script
+var model_maker: Script
 
 
 func extract_all(source_file: String, target_path: String = "", options: Dictionary = {}) -> void:
@@ -27,34 +31,59 @@ func extract_all(source_file: String, target_path: String = "", options: Diction
 		reader.close()
 		return
 
+	var asset_name := source_file.get_file().get_basename()
+	var asset_type := _get_asset_type(asset_name, options)
 	var final_extract_path = _prepare_extraction_path(extraction_path, source_file)
-	_emit_extraction_started(source_file.get_file().get_basename())
+	_emit_extraction_started(asset_name)
 
 	if DirAccess.dir_exists_absolute(final_extract_path):
 		utils.clean_dir_content(final_extract_path)
 
-	var saved_files = _extract_zip_contents(reader, files, final_extract_path, options, file_sys)
-	_refresh_filesystem(file_sys)
+	var saved_files = _extract_zip_contents(reader, files, final_extract_path, asset_type, options)
 	reader.close()
 
-	await _wait_for_import(saved_files, file_sys)
-	await _finalize_extraction(
-		source_file.get_file().get_basename(), saved_files, final_extract_path, options, file_sys
+	# Resources are written straight away from the extracted file names, so
+	# they never depend on the editor having imported the textures first.
+	var created := _build_resources(
+		asset_type, asset_name, saved_files, final_extract_path, options
 	)
+	if created.is_empty():
+		if signals:
+			signals.extraction_failed.emit(source_file.get_file(), "Failed to create resource")
+		return
+
+	for path in created:
+		_log_info("Created %s" % path)
+
+	if file_sys:
+		file_sys.scan()
+		for path in created:
+			await _register_file(file_sys, path)
 
 	_log_info("Success! Resources created and folders populated")
-	_emit_extraction_completed(source_file.get_file().get_basename(), final_extract_path)
+	_emit_extraction_completed(asset_name, final_extract_path)
 	DirAccess.remove_absolute(source_file)
+
+
+func _get_asset_type(asset_name: String, options: Dictionary) -> String:
+	var asset_type: String = options.get("asset_type", "")
+	if not asset_type.is_empty():
+		return asset_type
+	return "hdri" if asset_name.to_lower().contains("hdri") else "material"
 
 
 func _extract_zip_contents(
 	reader: ZIPReader,
 	files: PackedStringArray,
 	target_dir: String,
-	options: Dictionary,
-	file_sys: Variant
+	asset_type: String,
+	options: Dictionary
 ) -> PackedStringArray:
 	utils.ensure_dir(target_dir)
+
+	var allowed: Array = IMAGE_EXTENSIONS.duplicate()
+	if asset_type == "3d-model":
+		allowed.append_array(MODEL_EXTENSIONS)
 
 	var res_regex = RegEx.new()
 	res_regex.compile("\\d+K")
@@ -62,9 +91,10 @@ func _extract_zip_contents(
 	var saved_files: PackedStringArray
 	for file in files:
 		var ext = file.get_extension().to_lower()
-		if not ext in ALLOWED_EXTENSIONS:
+		if not ext in allowed:
 			continue
 
+		# Skips preview images such as "Bricks113A.png"
 		if ext in ["jpg", "jpeg", "png"] and not res_regex.search(file):
 			continue
 
@@ -80,52 +110,98 @@ func _extract_zip_contents(
 		if fs:
 			fs.store_buffer(file_data)
 			fs.close()
-			if file_sys:
-				file_sys.update_file(new_file_path)
-
 			saved_files.append(new_file_path)
 
 			if ext in ["jpg", "jpeg", "png"] and options.get("use_custom_size", false):
 				_process_image_scaling(new_file_path, options)
-				if file_sys:
-					file_sys.update_file(new_file_path)
 
 	return saved_files
 
 
-func _finalize_extraction(
+## Writes the Godot resources for an asset and returns their paths
+## (empty if nothing could be created).
+func _build_resources(
+	asset_type: String,
 	asset_name: String,
 	saved_files: PackedStringArray,
-	_final_extract_path: String,
-	options: Dictionary,
-	file_sys: Variant
-) -> void:
-	var is_hdri := asset_name.to_lower().contains("hdri")
-	var mat_dir: String = config.get_setting(
-		config.SETTING_MATERIAL_DIR, config.DEFAULT_MATERIAL_DIR
-	)
-	var env_dir: String = config.get_setting(
-		config.SETTING_ENVIRONMENT_DIR, config.DEFAULT_ENVIRONMENT_DIR
-	)
-	var save_dir := env_dir if is_hdri else mat_dir
-	var mat_save_path: String = save_dir.path_join(
-		utils.sanitize_file_component(asset_name) + ".tres"
-	)
+	extract_dir: String,
+	options: Dictionary
+) -> PackedStringArray:
+	var file_name: String = utils.sanitize_file_component(asset_name)
+	var created := PackedStringArray()
 
-	# Resources are always generated locally; .tres files shipped inside an
-	# archive are never copied into the project.
-	var res: Resource
-	if is_hdri:
-		res = environment_maker.make_environment_resource(saved_files)
-	elif options.get("enable_packing", false):
-		res = material_maker.make_orm_material(saved_files, options)
-	else:
-		res = material_maker.make_standard_material(saved_files, options)
+	match asset_type:
+		"hdri":
+			var env_path := _output_path(config.SETTING_ENVIRONMENT_DIR, file_name + ".tres")
+			if _check(environment_maker.write_environment(env_path, saved_files), env_path):
+				created.append(env_path)
 
-	ResourceSaver.save(res, mat_save_path)
+		"decal":
+			var decal_path := _output_path(config.SETTING_DECAL_DIR, file_name + ".tscn")
+			var err = decal_maker.write_decal_scene(decal_path, file_name, saved_files, extract_dir)
+			if _check(err, decal_path):
+				created.append(decal_path)
 
-	if file_sys:
-		file_sys.update_file(mat_save_path)
+		"3d-model":
+			var mat_path := _output_path(config.SETTING_MATERIAL_DIR, file_name + ".tres")
+			var err = material_maker.write_standard_material(mat_path, saved_files, options)
+			if not _check(err, mat_path):
+				return created
+			created.append(mat_path)
+
+			var scene_path := _output_path(config.SETTING_MODEL_DIR, file_name + ".tscn")
+			var mesh_path: String = model_maker.find_mesh(saved_files)
+			err = model_maker.write_model_scene(scene_path, file_name, mesh_path, mat_path)
+			if _check(err, scene_path):
+				created.append(scene_path)
+
+		_:
+			var mat_path := _output_path(config.SETTING_MATERIAL_DIR, file_name + ".tres")
+			var err = material_maker.write_standard_material(mat_path, saved_files, options)
+			if _check(err, mat_path):
+				created.append(mat_path)
+
+	return created
+
+
+func _output_path(setting: String, file_name: String) -> String:
+	var dir: String = config.get_setting(setting, config.get_default(setting))
+	utils.ensure_dir(dir)
+	return dir.path_join(file_name)
+
+
+func _check(err: Error, path: String) -> bool:
+	if err != OK:
+		_log_error("Failed to create %s (%s)" % [path, error_string(err)])
+	return err == OK
+
+
+# Registers a newly written file with the editor's FileSystem dock.
+# update_file() does nothing for folders the editor has not scanned yet, and
+# a scan that started before the file was written replaces the file list
+# with a stale snapshot when it finishes. So keep (re)registering the file
+# until it has stayed listed through a few quiet checks in a row.
+func _register_file(file_sys: Variant, path: String) -> void:
+	var stable_checks := 0
+	for _attempt in 40:
+		await _wait_for_scan(file_sys)
+		if file_sys.get_filesystem_path(path.get_base_dir()) == null:
+			stable_checks = 0
+			file_sys.scan()
+		elif file_sys.get_file_type(path).is_empty():
+			stable_checks = 0
+			file_sys.update_file(path)
+		else:
+			stable_checks += 1
+			if stable_checks >= 4:
+				return
+		await get_tree().create_timer(0.5).timeout
+	_log_warn("Editor did not pick up %s; it will appear after a rescan" % path)
+
+
+func _wait_for_scan(file_sys: Variant) -> void:
+	while file_sys.is_scanning():
+		await get_tree().process_frame
 
 
 func _process_image_scaling(path: String, options: Dictionary) -> void:
@@ -171,34 +247,10 @@ func open_directory_dialog_for_path(title: String) -> String:
 	return await dialog.dir_selected
 
 
-func _wait_for_import(files: PackedStringArray, file_sys: Variant) -> void:
-	var timeout = 5.0
-	while timeout > 0:
-		var missing_files = false
-		for f in files:
-			if not ResourceLoader.exists(f):
-				missing_files = true
-				break
-
-		if not missing_files:
-			break
-
-		await get_tree().create_timer(0.5).timeout
-		timeout -= 0.5
-		if file_sys:
-			file_sys.scan()
-
-
 func _get_filesystem() -> Variant:
 	if Engine.is_editor_hint() and is_instance_valid(EditorInterface):
 		return EditorInterface.get_resource_filesystem()
 	return null
-
-
-func _refresh_filesystem(file_sys: Variant) -> void:
-	if file_sys:
-		file_sys.scan()
-		file_sys.scan_sources()
 
 
 func _open_zip_reader(source_file: String) -> ZIPReader:

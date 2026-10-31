@@ -8,6 +8,8 @@ var signals: Node
 var api: Node
 var material_maker: Script
 var environment_maker: Script
+var decal_maker: Script
+var model_maker: Script
 
 var downloader: Node
 var extractor: Node
@@ -35,6 +37,8 @@ func _ready() -> void:
 	extractor.signals = signals
 	extractor.material_maker = material_maker
 	extractor.environment_maker = environment_maker
+	extractor.decal_maker = decal_maker
+	extractor.model_maker = model_maker
 
 
 func download_file_from_data(file_information: Dictionary, source_window: Node) -> void:
@@ -47,11 +51,5 @@ func extract_all(source_file: String, target_path: String = "", options: Diction
 
 
 func check_dirs() -> void:
-	var paths = [
-		config.get_setting(config.SETTING_DOWNLOAD_PATH, config.DEFAULT_DOWNLOAD_PATH),
-		config.get_setting(config.SETTING_EXTRACT_PATH, config.DEFAULT_EXTRACT_PATH),
-		config.get_setting(config.SETTING_MATERIAL_DIR, config.DEFAULT_MATERIAL_DIR),
-		config.get_setting(config.SETTING_ENVIRONMENT_DIR, config.DEFAULT_ENVIRONMENT_DIR)
-	]
-	for p in paths:
-		utils.ensure_dir(p)
+	for setting in config.PATH_DEFAULTS:
+		utils.ensure_dir(config.get_setting(setting, config.PATH_DEFAULTS[setting]))

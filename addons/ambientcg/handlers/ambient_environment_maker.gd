@@ -1,37 +1,32 @@
 @tool
+# AmbientEnvironmentMaker
+# Writes Environment resources that use an ambientCG HDRI as the sky.
+
+const Writer = preload("res://addons/ambientcg/handlers/ambient_resource_writer.gd")
 
 
-static func make_environment_resource(files: PackedStringArray) -> Environment:
-	var sky_res := Sky.new()
-	var sky_mat := PanoramaSkyMaterial.new()
-
+static func find_panorama(files: PackedStringArray) -> String:
 	for file in files:
-		var ext = file.get_extension().to_lower()
-		if ext in ["exr", "hdr"]:
-			var tex = _load_texture(file)
-			if tex:
-				sky_mat.panorama = tex
-				break
-
-	sky_res.sky_material = sky_mat
-
-	var environment := Environment.new()
-	environment.background_mode = Environment.BG_SKY
-	environment.sky = sky_res
-
-	# ACES Tone mapping is generally better for HDRIs
-	environment.tonemap_mode = Environment.TONE_MAPPER_ACES
-	environment.glow_enabled = true
-
-	return environment
+		if file.get_extension().to_lower() in ["exr", "hdr"]:
+			return file
+	return ""
 
 
-static func _load_texture(path: String) -> Texture2D:
-	if path.begins_with("res://") and Engine.is_editor_hint():
-		return load(path)
+static func write_environment(path: String, files: PackedStringArray) -> Error:
+	var panorama := find_panorama(files)
+	if panorama.is_empty():
+		return ERR_FILE_NOT_FOUND
 
-	# Fallback for user:// or non-imported files
-	var img = Image.load_from_file(path)
-	if img and not img.is_empty():
-		return ImageTexture.create_from_image(img)
-	return null
+	var writer := Writer.new()
+	var sky_material = writer.sub(
+		"PanoramaSkyMaterial", {"panorama": writer.ext("Texture2D", panorama)}
+	)
+	var sky = writer.sub("Sky", {"sky_material": sky_material})
+	var props := {
+		"background_mode": Environment.BG_SKY,
+		"sky": sky,
+		# ACES tone mapping is generally better for HDRIs
+		"tonemap_mode": Environment.TONE_MAPPER_ACES,
+		"glow_enabled": true,
+	}
+	return Writer.save_text(path, writer.build_resource("Environment", props))

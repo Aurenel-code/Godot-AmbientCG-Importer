@@ -5,10 +5,17 @@ const BROWSER_WIDGET = preload(
 	"res://addons/ambientcg/ui/components/browser_widget/browser_widget.tscn"
 )
 const CONFIG = preload("res://addons/ambientcg/core/ambient_config.gd")
+# Display name -> value accepted by the ambientCG API's "sort" parameter.
+const SORT_OPTIONS = {
+	"Popular": "popular",
+	"Latest": "latest",
+	"Alphabetical": "alphabet",
+	"Most Downloaded": "downloads",
+}
 
 var type_text: String = "Any"
 var resolution_text: String = "Any"
-var sort_text: String = "Popular"
+var sort_value: String = "popular"
 var next_query_uri: String = ""
 var awaiting_search_finish: bool = false
 
@@ -52,7 +59,7 @@ func _on_filter_changed(_index: int = 0) -> void:
 	var meta = type_options.get_item_metadata(type_options.selected)
 	type_text = str(meta) if meta != null and str(meta) != "" else "Any"
 	resolution_text = resolution_options.get_item_text(resolution_options.selected)
-	sort_text = sort_options.get_item_text(sort_options.selected)
+	sort_value = str(sort_options.get_item_metadata(sort_options.selected))
 	search(search_bar.text)
 
 
@@ -88,8 +95,9 @@ func _populate_resolution_options():
 
 func _populate_sort_options():
 	sort_options.clear()
-	for s in ["Popular", "Latest", "Alphabetical"]:
-		sort_options.add_item(s)
+	for label in SORT_OPTIONS:
+		sort_options.add_item(label)
+		sort_options.set_item_metadata(sort_options.get_item_count() - 1, SORT_OPTIONS[label])
 
 
 func init_browser():
@@ -150,7 +158,7 @@ func search(query: String = "", use_next: bool = false):
 		_clear_search_grid()
 
 	var result = await ambient_cg.api.search_assets(
-		query, type_text, next_query_uri if use_next else ""
+		query, type_text, next_query_uri if use_next else "", "", sort_value
 	)
 
 	_on_search_finished()

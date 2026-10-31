@@ -20,6 +20,8 @@ func before_each():
 	_handler.environment_maker = load(
 		"res://addons/ambientcg/handlers/ambient_environment_maker.gd"
 	)
+	_handler.decal_maker = load("res://addons/ambientcg/handlers/ambient_decal_maker.gd")
+	_handler.model_maker = load("res://addons/ambientcg/handlers/ambient_model_maker.gd")
 
 	add_child(_handler)
 

@@ -4,12 +4,25 @@ const SETTING_DOWNLOAD_PATH = "ambientcg/download_path"
 const SETTING_EXTRACT_PATH = "ambientcg/extract_path"
 const SETTING_MATERIAL_DIR = "ambientcg/material_file_directory"
 const SETTING_ENVIRONMENT_DIR = "ambientcg/environment_file_directory"
+const SETTING_DECAL_DIR = "ambientcg/decal_file_directory"
+const SETTING_MODEL_DIR = "ambientcg/model_file_directory"
 const SETTING_ASK_BEFORE_DOWNLOAD = "ambientcg/ask_before_download"
 
 const DEFAULT_DOWNLOAD_PATH = "res://ambientcg/temp"
 const DEFAULT_EXTRACT_PATH = "res://ambientcg/extracted"
 const DEFAULT_MATERIAL_DIR = "res://ambientcg/materials"
 const DEFAULT_ENVIRONMENT_DIR = "res://ambientcg/environments"
+const DEFAULT_DECAL_DIR = "res://ambientcg/decals"
+const DEFAULT_MODEL_DIR = "res://ambientcg/models"
+
+const PATH_DEFAULTS = {
+	SETTING_DOWNLOAD_PATH: DEFAULT_DOWNLOAD_PATH,
+	SETTING_EXTRACT_PATH: DEFAULT_EXTRACT_PATH,
+	SETTING_MATERIAL_DIR: DEFAULT_MATERIAL_DIR,
+	SETTING_ENVIRONMENT_DIR: DEFAULT_ENVIRONMENT_DIR,
+	SETTING_DECAL_DIR: DEFAULT_DECAL_DIR,
+	SETTING_MODEL_DIR: DEFAULT_MODEL_DIR,
+}
 
 const HOME_URL = "https://ambientcg.com/api/v3/"
 const BASE_DOMAIN = "https://ambientcg.com"
@@ -24,6 +37,10 @@ static func get_setting(key: String, default_value: Variant) -> Variant:
 	return ProjectSettings.get_setting(key, default_value)
 
 
+static func get_default(key: String) -> Variant:
+	return PATH_DEFAULTS.get(key)
+
+
 static func get_instance(node: Node) -> Node:
 	if node.is_inside_tree():
 		return node.get_node_or_null("/root/AmbientCG")
@@ -35,16 +52,7 @@ static func is_plugin_enabled() -> bool:
 
 
 static func set_setting(key: String, value: Variant) -> void:
-	if (
-		key
-		in [
-			SETTING_DOWNLOAD_PATH,
-			SETTING_EXTRACT_PATH,
-			SETTING_MATERIAL_DIR,
-			SETTING_ENVIRONMENT_DIR,
-			SETTING_ASK_BEFORE_DOWNLOAD
-		]
-	):
+	if key in PATH_DEFAULTS or key == SETTING_ASK_BEFORE_DOWNLOAD:
 		if typeof(value) == TYPE_STRING:
 			value = value.to_lower()
 	ProjectSettings.set_setting(key, value)

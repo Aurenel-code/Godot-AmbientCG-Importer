@@ -19,8 +19,6 @@ var _last_request_id: int = 0
 @onready var preview_rect: TextureRect = %PreviewRect
 @onready var groups_container: VBoxContainer = %GroupsContainer
 @onready var download_list: VBoxContainer = %DownloadList
-@onready var zip_radio: CheckBox = %ZipRadio
-@onready var usdz_radio: CheckBox = %UsdzRadio
 @onready var id_edit: LineEdit = %IdEdit
 @onready var load_button: Button = %LoadButton
 
@@ -31,8 +29,6 @@ func _ready() -> void:
 	var ambient_cg = CONFIG.get_instance(self)
 	if ambient_cg:
 		ambient_cg.signals.download_started.connect(_on_download_started)
-	zip_radio.toggled.connect(_on_container_changed)
-	usdz_radio.toggled.connect(_on_container_changed)
 	id_edit.text_submitted.connect(_on_manual_id_submitted)
 	load_button.pressed.connect(func(): _on_manual_id_submitted(id_edit.text))
 
@@ -85,11 +81,6 @@ func display_asset(asset: Dictionary) -> void:
 		groups_container.add_child(err_label)
 
 
-func _on_container_changed(_toggled: bool):
-	if _toggled:
-		_build_download_ui()
-
-
 func _build_download_ui() -> void:
 	if not CONFIG.is_plugin_enabled():
 		return
@@ -104,7 +95,7 @@ func _build_download_ui() -> void:
 		groups_container.add_child(err_label)
 		return
 
-	var filter_ext = "zip" if zip_radio.button_pressed else "usdz"
+	var filter_ext = _pick_container_format(_parsed_implementations)
 	var is_hdri = asset_data.get("asset_type", "") == "hdri"
 
 	var grouped_data = _group_implementations(_parsed_implementations, filter_ext, is_hdri)
@@ -173,6 +164,19 @@ func _build_download_ui() -> void:
 		groups_container.add_child(group_vbox)
 
 
+# ZIP archives are what the extractor is built for, so they win whenever an
+# asset offers them; otherwise fall back to whatever format is available.
+static func _pick_container_format(implementations: Array[Dictionary]) -> String:
+	var fallback := ""
+	for opt in implementations:
+		var ext = str(opt.get("local_file_name", "")).get_extension().to_lower()
+		if ext == "zip":
+			return ext
+		if fallback.is_empty():
+			fallback = ext
+	return fallback
+
+
 func _sort_by_resolution(a: Dictionary, b: Dictionary) -> bool:
 	var res_a = _extract_res(a.get("local_file_name", ""))
 	var res_b = _extract_res(b.get("local_file_name", ""))
@@ -200,10 +204,10 @@ func _load_preview(url: String, request_id: int) -> void:
 		preview_rect.texture = texture
 
 
-func _on_download_started(_url: String, asset_name: String) -> void:
+func _on_download_started(_url: String, asset_name: String, asset_type: String) -> void:
 	var item = DOWNLOAD_ITEM_SCENE.instantiate()
 	download_list.add_child(item)
-	item.setup(_url, asset_name)
+	item.setup(_url, asset_name, asset_type)
 
 
 func _group_implementations(

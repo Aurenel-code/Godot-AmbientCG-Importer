@@ -5,6 +5,7 @@ const CONFIG = preload("res://addons/ambientcg/core/ambient_config.gd")
 
 var url: String = ""
 var asset_name: String = ""
+var asset_type: String = ""
 var local_path: String = ""
 var _is_extracting: bool = false
 
@@ -20,9 +21,10 @@ func _ready() -> void:
 	_connect_signals_if_enabled()
 
 
-func setup(p_url: String, p_name: String):
+func setup(p_url: String, p_name: String, p_asset_type: String = ""):
 	url = p_url
 	asset_name = p_name
+	asset_type = p_asset_type
 	local_path = _build_download_path(p_name)
 	if is_inside_tree():
 		title_label.text = asset_name
@@ -68,6 +70,8 @@ func _start_extraction() -> void:
 		var extract_path = CONFIG.get_setting(
 			CONFIG.SETTING_EXTRACT_PATH, CONFIG.DEFAULT_EXTRACT_PATH
 		)
-		await ambient_cg.file_handler.extract_all(local_path, extract_path)
+		await ambient_cg.file_handler.extract_all(
+			local_path, extract_path, {"asset_type": asset_type}
+		)
 
 	queue_free()

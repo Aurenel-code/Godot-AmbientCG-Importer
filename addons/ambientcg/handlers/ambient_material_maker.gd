@@ -1,58 +1,73 @@
 @tool
 # AmbientMaterialMaker
-# Utility class for creating Godot materials from extracted texture files.
+# Writes StandardMaterial3D resources for ambientCG texture sets.
+
+const Writer = preload("res://addons/ambientcg/handlers/ambient_resource_writer.gd")
+
+# Last "_"-separated part of an ambientCG texture name -> texture role.
+# NormalDX is deliberately absent: Godot expects OpenGL-style normal maps.
+const TEXTURE_ROLES = {
+	"color": "albedo",
+	"normalgl": "normal",
+	"roughness": "roughness",
+	"metalness": "metallic",
+	"ambientocclusion": "ao",
+	"displacement": "height",
+	"opacity": "opacity",
+	"emission": "emission",
+}
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png"]
 
 
-static func make_standard_material(
-	files: PackedStringArray, options: Dictionary
-) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.uv1_triplanar = options.get("use_triplanar_uv", false)
-
-	for file: String in files:
-		if not FileAccess.file_exists(file):
+## Maps texture roles ("albedo", "normal", ...) to the matching file paths.
+static func classify_textures(files: PackedStringArray) -> Dictionary:
+	var maps := {}
+	for file in files:
+		if not file.get_extension().to_lower() in IMAGE_EXTENSIONS:
 			continue
-
-		var tex = _load_texture(file)
-		if not tex:
-			continue
-
-		var f_lower = file.get_file().to_lower()
-		# Godot expects OpenGL-style normal maps; ambientCG ships both.
-		if f_lower.contains("normaldx"):
-			continue
-
-		if f_lower.contains("color"):
-			material.albedo_texture = tex
-		if f_lower.contains("normal"):
-			material.normal_enabled = true
-			material.normal_texture = tex
-		if f_lower.contains("metalness"):
-			material.metallic_texture = tex
-		if f_lower.contains("rough"):
-			material.roughness_texture = tex
-		if f_lower.contains("ambientocclusion"):
-			material.ao_enabled = true
-			material.ao_texture = tex
-		if f_lower.contains("displacement") or f_lower.contains("height"):
-			material.heightmap_enabled = not options.get("use_triplanar_uv", false)
-			material.heightmap_texture = tex
-
-	return material
+		var base_name := file.get_file().get_basename()
+		var suffix := base_name.get_slice("_", base_name.get_slice_count("_") - 1).to_lower()
+		var role = TEXTURE_ROLES.get(suffix, "")
+		if not role.is_empty() and not maps.has(role):
+			maps[role] = file
+	return maps
 
 
-static func _load_texture(path: String) -> Texture2D:
-	if path.begins_with("res://") and Engine.is_editor_hint():
-		return load(path)
+## Returns StandardMaterial3D properties for the given texture maps,
+## registering each texture with the writer.
+static func build_material_properties(
+	writer: Writer, maps: Dictionary, options: Dictionary
+) -> Dictionary:
+	var triplanar: bool = options.get("use_triplanar_uv", false)
+	var props := {}
+	if triplanar:
+		props["uv1_triplanar"] = true
+	if maps.has("albedo"):
+		props["albedo_texture"] = writer.ext("Texture2D", maps["albedo"])
+	if maps.has("metallic"):
+		# The texture is multiplied by `metallic`, which defaults to 0.
+		props["metallic"] = 1.0
+		props["metallic_texture"] = writer.ext("Texture2D", maps["metallic"])
+	if maps.has("roughness"):
+		props["roughness_texture"] = writer.ext("Texture2D", maps["roughness"])
+	if maps.has("emission"):
+		props["emission_enabled"] = true
+		props["emission_texture"] = writer.ext("Texture2D", maps["emission"])
+	if maps.has("normal"):
+		props["normal_enabled"] = true
+		props["normal_texture"] = writer.ext("Texture2D", maps["normal"])
+	if maps.has("ao"):
+		props["ao_enabled"] = true
+		props["ao_texture"] = writer.ext("Texture2D", maps["ao"])
+	if maps.has("height") and not triplanar:
+		props["heightmap_enabled"] = true
+		props["heightmap_texture"] = writer.ext("Texture2D", maps["height"])
+	return props
 
-	# Fallback for user:// or non-imported files
-	var img = Image.load_from_file(path)
-	if img and not img.is_empty():
-		return ImageTexture.create_from_image(img)
-	return null
 
-
-static func make_orm_material(_files: PackedStringArray, _options: Dictionary) -> ORMMaterial3D:
-	var material := ORMMaterial3D.new()
-	# TODO: Implement ORM texture packing logic
-	return material
+static func write_standard_material(
+	path: String, files: PackedStringArray, options: Dictionary
+) -> Error:
+	var writer := Writer.new()
+	var props := build_material_properties(writer, classify_textures(files), options)
+	return Writer.save_text(path, writer.build_resource("StandardMaterial3D", props))
