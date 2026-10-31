@@ -23,11 +23,11 @@ func test_set_and_get_setting():
 
 
 func test_migrate_legacy_defaults():
-	var key = Config.SETTING_ENVIRONMENT_DIR
+	var key = Config.SETTING_HDRI_DIR
 	var saved = ProjectSettings.get_setting(key)
 	ProjectSettings.set_setting(key, "res://ambientcg/environments")
 	Config.migrate_legacy_defaults()
-	assert_eq(Config.get_setting(key, ""), Config.DEFAULT_ENVIRONMENT_DIR)
+	assert_eq(Config.get_setting(key, ""), Config.DEFAULT_HDRI_DIR)
 
 	ProjectSettings.set_setting(key, "res://my/custom/dir")
 	Config.migrate_legacy_defaults()

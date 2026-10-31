@@ -108,11 +108,7 @@ func test_color_map_with_alpha_is_used_directly():
 	DirAccess.remove_absolute(dir)
 
 
-func test_atlas_is_transparent_and_opaque_material_is_not():
+func test_opaque_material_has_no_transparency():
 	var maps = {"albedo": SET + "Color.jpg"}
-	var atlas = MaterialMaker.build_material_properties(
-		MaterialMaker.Writer.new(), maps, {"asset_type": "atlas"}
-	)
-	assert_true(atlas.has("transparency"))
-	var opaque = MaterialMaker.build_material_properties(MaterialMaker.Writer.new(), maps, {})
-	assert_false(opaque.has("transparency"))
+	var props = MaterialMaker.build_material_properties(MaterialMaker.Writer.new(), maps, {})
+	assert_false(props.has("transparency"))

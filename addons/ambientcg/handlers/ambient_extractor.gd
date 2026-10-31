@@ -12,27 +12,37 @@ var utils: Script
 var logger: Node
 var signals: Node
 var material_maker: Script
-var environment_maker: Script
+var sky_maker: Script
 var decal_maker: Script
 var model_maker: Script
 
 
-func extract_all(source_file: String, target_path: String = "", options: Dictionary = {}) -> void:
+## Extracts an asset and builds its resources. Returns the created paths
+## (empty on failure).
+func extract_all(
+	source_file: String, target_path: String = "", options: Dictionary = {}
+) -> PackedStringArray:
 	_log_info("Starting automatic extraction for: %s" % source_file)
 
 	var file_sys = _get_filesystem()
 	var reader = _open_zip_reader(source_file)
 	if not reader:
-		return
+		return PackedStringArray()
 
 	var files = reader.get_files()
 	var extraction_path = await _get_extraction_path(target_path)
 	if extraction_path.is_empty():
 		reader.close()
-		return
+		return PackedStringArray()
 
 	var asset_name := source_file.get_file().get_basename()
 	var asset_type := _get_asset_type(asset_name, options)
+	# Atlases can serve as decals, sprites or particles, so no resource is
+	# generated; their textures go to a folder of their own instead.
+	if asset_type == "atlas":
+		extraction_path = config.get_setting(
+			config.SETTING_ATLAS_DIR, config.get_default(config.SETTING_ATLAS_DIR)
+		)
 	var final_extract_path = _prepare_extraction_path(extraction_path, source_file)
 	_emit_extraction_started(asset_name)
 
@@ -50,7 +60,7 @@ func extract_all(source_file: String, target_path: String = "", options: Diction
 	if created.is_empty():
 		if signals:
 			signals.extraction_failed.emit(source_file.get_file(), "Failed to create resource")
-		return
+		return PackedStringArray()
 
 	for path in created:
 		_log_info("Created %s" % path)
@@ -58,11 +68,14 @@ func extract_all(source_file: String, target_path: String = "", options: Diction
 	if file_sys:
 		file_sys.scan()
 		for path in created:
-			await _register_file(file_sys, path)
+			# Textures are picked up by the scan; generated resources need help.
+			if path.get_extension() in ["tres", "tscn"]:
+				await _register_file(file_sys, path)
 
 	_log_info("Success! Resources created and folders populated")
 	_emit_extraction_completed(asset_name, final_extract_path)
 	DirAccess.remove_absolute(source_file)
+	return created
 
 
 func _get_asset_type(asset_name: String, options: Dictionary) -> String:
@@ -132,9 +145,12 @@ func _build_resources(
 
 	match asset_type:
 		"hdri":
-			var env_path := _output_path(config.SETTING_ENVIRONMENT_DIR, file_name + ".tres")
-			if _check(environment_maker.write_environment(env_path, saved_files), env_path):
-				created.append(env_path)
+			var sky_path := _output_path(config.SETTING_HDRI_DIR, file_name + ".tres")
+			if _check(sky_maker.write_sky_material(sky_path, saved_files), sky_path):
+				created.append(sky_path)
+
+		"atlas":
+			created.append_array(saved_files)
 
 		"decal":
 			var decal_path := _output_path(config.SETTING_DECAL_DIR, file_name + ".tscn")

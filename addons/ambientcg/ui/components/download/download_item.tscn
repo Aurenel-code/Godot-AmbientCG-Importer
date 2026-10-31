@@ -39,12 +39,20 @@ theme_override_colors/font_color = Color(0.666667, 0.666667, 0.666667, 1)
 theme_override_font_sizes/font_size = 12
 text = "Downloading"
 
-[node name="ExtractButton" type="Button" parent="Margin/VBox/HBox"]
+[node name="ShowButton" type="Button" parent="Margin/VBox/HBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-text = "Extract"
+tooltip_text = "Show in FileSystem"
+text = "Show"
+
+[node name="Info" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 11
+text = "Material"
 
 [node name="ProgressBar" type="ProgressBar" parent="Margin/VBox"]
 unique_name_in_owner = true

@@ -42,6 +42,7 @@ func test_parse_assets_types_and_filters():
 		"assets":
 		[
 			{"id": "BricksSubstance008", "type": "substance", "downloads": []},
+			{"id": "Terrain005", "type": "terrain", "downloads": []},
 			{
 				"id": "Leaking012A",
 				"type": "decal",
@@ -55,7 +56,7 @@ func test_parse_assets_types_and_filters():
 		]
 	}
 	var assets = Parser.parse_assets(mock_json).get("assets")
-	assert_eq(assets.size(), 2, "Substance assets should be hidden")
+	assert_eq(assets.size(), 2, "Substance and terrain assets should be hidden")
 	assert_eq(assets[0].get("asset_type"), "decal")
 	assert_eq(assets[0].get("download_data").size(), 1, "Animated downloads should be hidden")
 	assert_eq(assets[0].get("download_data")[0].get("asset_type"), "decal")

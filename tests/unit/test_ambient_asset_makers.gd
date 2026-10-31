@@ -3,7 +3,7 @@ extends GutTest
 const DIR = "user://test_asset_makers/"
 
 var Writer = load("res://addons/ambientcg/handlers/ambient_resource_writer.gd")
-var EnvironmentMaker = load("res://addons/ambientcg/handlers/ambient_environment_maker.gd")
+var SkyMaker = load("res://addons/ambientcg/handlers/ambient_sky_maker.gd")
 var DecalMaker = load("res://addons/ambientcg/handlers/ambient_decal_maker.gd")
 var ModelMaker = load("res://addons/ambientcg/handlers/ambient_model_maker.gd")
 
@@ -47,18 +47,18 @@ func test_writer_output_loads_as_resource():
 	assert_almost_eq(mat.metallic, 0.5, 0.001)
 
 
-func test_environment_uses_exr_panorama():
+func test_sky_material_uses_exr_panorama():
 	var files: PackedStringArray = [DIR + "Sky_1K_TONEMAPPED.jpg", DIR + "Sky_1K_HDR.exr"]
-	assert_eq(EnvironmentMaker.write_environment(DIR + "env.tres", files), OK)
-	var text = FileAccess.get_file_as_string(DIR + "env.tres")
+	assert_eq(SkyMaker.write_sky_material(DIR + "sky.tres", files), OK)
+	var text = FileAccess.get_file_as_string(DIR + "sky.tres")
+	assert_string_contains(text, '[gd_resource type="PanoramaSkyMaterial" format=3]')
 	assert_string_contains(text, 'path="%sSky_1K_HDR.exr"' % DIR)
-	assert_string_contains(text, '[sub_resource type="PanoramaSkyMaterial"')
-	assert_string_contains(text, "background_mode = %d" % Environment.BG_SKY)
+	assert_string_contains(text, 'panorama = ExtResource("1_ext")')
 
 
-func test_environment_without_panorama_fails():
+func test_sky_material_without_panorama_fails():
 	var files: PackedStringArray = [DIR + "Sky_1K_TONEMAPPED.jpg"]
-	assert_ne(EnvironmentMaker.write_environment(DIR + "env.tres", files), OK)
+	assert_ne(SkyMaker.write_sky_material(DIR + "sky.tres", files), OK)
 
 
 func test_decal_bakes_opacity_into_albedo_alpha():

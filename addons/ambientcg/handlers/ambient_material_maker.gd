@@ -44,8 +44,7 @@ static func build_material_properties(
 	var props := {}
 	if triplanar:
 		props["uv1_triplanar"] = true
-	# Every ambientCG atlas is a set of cut-outs on a transparent background.
-	if maps.has("opacity") or options.get("asset_type", "") == "atlas":
+	if maps.has("opacity"):
 		props["transparency"] = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
 		props["cull_mode"] = BaseMaterial3D.CULL_DISABLED
 	if maps.has("albedo"):

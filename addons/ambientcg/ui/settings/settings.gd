@@ -10,9 +10,10 @@ const CONFIG = preload("res://addons/ambientcg/core/ambient_config.gd")
 @onready var path_edits = {
 	CONFIG.SETTING_MATERIAL_DIR: %MatPath,
 	CONFIG.SETTING_EXTRACT_PATH: %ExtPath,
-	CONFIG.SETTING_ENVIRONMENT_DIR: %EnvPath,
+	CONFIG.SETTING_HDRI_DIR: %EnvPath,
 	CONFIG.SETTING_DECAL_DIR: %DecalPath,
 	CONFIG.SETTING_MODEL_DIR: %ModelPath,
+	CONFIG.SETTING_ATLAS_DIR: %AtlasPath,
 	CONFIG.SETTING_DOWNLOAD_PATH: %DownPath,
 }
 

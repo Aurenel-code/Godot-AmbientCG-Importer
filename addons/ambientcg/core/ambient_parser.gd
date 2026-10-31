@@ -2,8 +2,9 @@
 
 const UTILS = preload("res://addons/ambientcg/utils/ambient_utils.gd")
 const TEMP_FILE_PATH := "user://temp_acg_tres.tres"
-# Asset types Godot has no use for; hidden from search results.
-const UNSUPPORTED_TYPES = ["substance"]
+# Asset types that are not supported (Godot has no use for Substance files;
+# terrains are left out for now); hidden from search results.
+const UNSUPPORTED_TYPES = ["substance", "terrain"]
 
 
 static func api_info_to_option_button(button: OptionButton, json: Dictionary) -> void:

@@ -59,7 +59,8 @@ Adjust paths and behaviors in **Project Settings** under the `ambientcg/` sectio
 | :--------------------------- | :----------------------------- | :------------------------------------- |
 | `extract_path`               | `res://ambientcg/extracted`    | Destination for raw asset files.       |
 | `material_file_directory`    | `res://ambientcg/materials`    | Where `.tres` materials are generated. |
-| `environment_file_directory` | `res://ambientcg/hdris`        | Where HDRI environments are saved.     |
+| `environment_file_directory` | `res://ambientcg/hdris`        | Where HDRI sky materials are saved.    |
+| `atlas_file_directory`       | `res://ambientcg/atlases`      | Where atlas textures are unpacked.     |
 | `download_path`              | `res://ambientcg/temp`         | Temporary storage for ZIP archives.    |
 
 ## DEVELOPMENT

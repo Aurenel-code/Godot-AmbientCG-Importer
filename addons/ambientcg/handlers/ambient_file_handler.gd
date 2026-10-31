@@ -7,7 +7,7 @@ var logger: Node
 var signals: Node
 var api: Node
 var material_maker: Script
-var environment_maker: Script
+var sky_maker: Script
 var decal_maker: Script
 var model_maker: Script
 
@@ -36,7 +36,7 @@ func _ready() -> void:
 	extractor.logger = logger
 	extractor.signals = signals
 	extractor.material_maker = material_maker
-	extractor.environment_maker = environment_maker
+	extractor.sky_maker = sky_maker
 	extractor.decal_maker = decal_maker
 	extractor.model_maker = model_maker
 
@@ -46,8 +46,10 @@ func download_file_from_data(file_information: Dictionary, source_window: Node) 
 	downloader.download_file_from_data(file_information, source_window)
 
 
-func extract_all(source_file: String, target_path: String = "", options: Dictionary = {}) -> void:
-	extractor.extract_all(source_file, target_path, options)
+func extract_all(
+	source_file: String, target_path: String = "", options: Dictionary = {}
+) -> PackedStringArray:
+	return await extractor.extract_all(source_file, target_path, options)
 
 
 func check_dirs() -> void:

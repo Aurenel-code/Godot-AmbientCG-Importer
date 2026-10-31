@@ -66,7 +66,7 @@ size_flags_horizontal = 3
 
 [node name="LabelEnv" type="Label" parent="Scroll/Margin/VBox/Grid"]
 layout_mode = 2
-text = "HDRIs Folder"
+text = "HDRIs Folder (Sky Materials)"
 
 [node name="EnvPath" type="LineEdit" parent="Scroll/Margin/VBox/Grid"]
 unique_name_in_owner = true
@@ -87,6 +87,15 @@ layout_mode = 2
 text = "3D Models Folder (.tscn)"
 
 [node name="ModelPath" type="LineEdit" parent="Scroll/Margin/VBox/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LabelAtlas" type="Label" parent="Scroll/Margin/VBox/Grid"]
+layout_mode = 2
+text = "Atlases Folder (Textures)"
+
+[node name="AtlasPath" type="LineEdit" parent="Scroll/Margin/VBox/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3

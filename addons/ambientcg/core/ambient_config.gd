@@ -3,31 +3,34 @@
 const SETTING_DOWNLOAD_PATH = "ambientcg/download_path"
 const SETTING_EXTRACT_PATH = "ambientcg/extract_path"
 const SETTING_MATERIAL_DIR = "ambientcg/material_file_directory"
-const SETTING_ENVIRONMENT_DIR = "ambientcg/environment_file_directory"
+const SETTING_HDRI_DIR = "ambientcg/environment_file_directory"
 const SETTING_DECAL_DIR = "ambientcg/decal_file_directory"
 const SETTING_MODEL_DIR = "ambientcg/model_file_directory"
+const SETTING_ATLAS_DIR = "ambientcg/atlas_file_directory"
 const SETTING_ASK_BEFORE_DOWNLOAD = "ambientcg/ask_before_download"
 
 const DEFAULT_DOWNLOAD_PATH = "res://ambientcg/temp"
 const DEFAULT_EXTRACT_PATH = "res://ambientcg/extracted"
 const DEFAULT_MATERIAL_DIR = "res://ambientcg/materials"
-const DEFAULT_ENVIRONMENT_DIR = "res://ambientcg/hdris"
+const DEFAULT_HDRI_DIR = "res://ambientcg/hdris"
 const DEFAULT_DECAL_DIR = "res://ambientcg/decals"
 const DEFAULT_MODEL_DIR = "res://ambientcg/models"
+const DEFAULT_ATLAS_DIR = "res://ambientcg/atlases"
 
 const PATH_DEFAULTS = {
 	SETTING_DOWNLOAD_PATH: DEFAULT_DOWNLOAD_PATH,
 	SETTING_EXTRACT_PATH: DEFAULT_EXTRACT_PATH,
 	SETTING_MATERIAL_DIR: DEFAULT_MATERIAL_DIR,
-	SETTING_ENVIRONMENT_DIR: DEFAULT_ENVIRONMENT_DIR,
+	SETTING_HDRI_DIR: DEFAULT_HDRI_DIR,
 	SETTING_DECAL_DIR: DEFAULT_DECAL_DIR,
 	SETTING_MODEL_DIR: DEFAULT_MODEL_DIR,
+	SETTING_ATLAS_DIR: DEFAULT_ATLAS_DIR,
 }
 
 # Earlier defaults that projects may still have saved; they are moved to the
 # current default the next time the plugin checks its folders.
 const LEGACY_PATH_DEFAULTS = {
-	SETTING_ENVIRONMENT_DIR: "res://ambientcg/environments",
+	SETTING_HDRI_DIR: "res://ambientcg/environments",
 }
 
 const HOME_URL = "https://ambientcg.com/api/v3/"

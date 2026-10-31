@@ -3,7 +3,9 @@ extends Node
 
 const UTILS = preload("res://addons/ambientcg/utils/ambient_utils.gd")
 const MAX_API_RESPONSE_BYTES := 16 * 1024 * 1024
-const MAX_DOWNLOAD_BYTES := 4 * 1024 * 1024 * 1024
+# HTTPRequest stores body_size_limit as a 32-bit int; larger values wrap
+# around and make every download fail, so this is the highest usable cap.
+const MAX_DOWNLOAD_BYTES := 2147483647
 const DOWNLOAD_SIZE_TOLERANCE_BYTES := 1024 * 1024
 const MAX_REDIRECTS := 5
 const REDIRECT_CODES = [301, 302, 303, 307, 308]
@@ -214,14 +216,13 @@ func search_assets(
 
 func api_init() -> Dictionary:
 	# "value" is the API's type name. Substance assets are left out because
-	# Godot cannot use .sbsar files.
+	# Godot cannot use .sbsar files; terrains are left out for now.
 	var types = [
 		{"label": "Material", "value": "material"},
 		{"label": "HDRI", "value": "hdri"},
 		{"label": "Decal", "value": "decal"},
 		{"label": "Atlas", "value": "atlas"},
 		{"label": "3D Model", "value": "3d-model"},
-		{"label": "Terrain", "value": "terrain"},
 	]
 	var data = {"types": types}
 	if manager:

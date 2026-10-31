@@ -55,7 +55,10 @@ func download_file_from_data(file_information: Dictionary, _source_window: Node)
 
 	if signals:
 		signals.download_started.emit(
-			file_uri, file_name, str(file_information.get("asset_type", ""))
+			file_uri,
+			file_name,
+			str(file_information.get("asset_type", "")),
+			int(file_information.get("file_size", 0))
 		)
 	if api:
 		await api.http_request_download(file_uri, path, file_information.get("file_size", 0))

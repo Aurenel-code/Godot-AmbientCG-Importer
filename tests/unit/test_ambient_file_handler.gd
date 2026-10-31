@@ -17,9 +17,7 @@ func before_each():
 	_handler.config = load("res://addons/ambientcg/core/ambient_config.gd")
 	_handler.utils = load("res://addons/ambientcg/utils/ambient_utils.gd")
 	_handler.material_maker = load("res://addons/ambientcg/handlers/ambient_material_maker.gd")
-	_handler.environment_maker = load(
-		"res://addons/ambientcg/handlers/ambient_environment_maker.gd"
-	)
+	_handler.sky_maker = load("res://addons/ambientcg/handlers/ambient_sky_maker.gd")
 	_handler.decal_maker = load("res://addons/ambientcg/handlers/ambient_decal_maker.gd")
 	_handler.model_maker = load("res://addons/ambientcg/handlers/ambient_model_maker.gd")
 

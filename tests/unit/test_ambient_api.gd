@@ -61,6 +61,7 @@ func test_search_assets_sends_sort():
 func test_api_init_types():
 	var values = _api.api_init().get("types").map(func(t): return t["value"])
 	assert_false(values.has("substance"), "Substance should not be offered")
+	assert_false(values.has("terrain"), "Terrain is left out for now")
 	assert_true(values.has("3d-model"), "API name for 3D models is '3d-model'")
 
 
@@ -70,3 +71,13 @@ func test_search_assets_omits_empty_sort():
 	await _api.search_assets("wood")
 	var url: String = get_call_parameters(_api, "http_request")[0]
 	assert_false(url.contains("sort="))
+
+
+func test_download_limit_fits_http_request():
+	var http = HTTPRequest.new()
+	http.body_size_limit = _api._get_download_limit(0)
+	assert_gt(http.body_size_limit, 0, "Unknown sizes must not wrap to a zero limit")
+	http.body_size_limit = _api._get_download_limit(3_000_000_000)
+	assert_gt(http.body_size_limit, 0, "Huge sizes must not wrap either")
+	http.free()
+	assert_eq(_api._get_download_limit(10 * 1024 * 1024), 11 * 1024 * 1024)
